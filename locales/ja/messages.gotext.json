@@ -1,0 +1,131 @@
+{
+    "language": "ja",
+    "messages": [
+        {
+            "id": "Zasm-go",
+            "message": "Zasm-go",
+            "translation": ""
+        },
+        {
+            "id": "Usage: go run main.go [options] srcfile outfile",
+            "message": "Usage: go run main.go [options] srcfile outfile",
+            "translation": ""
+        },
+        {
+            "id": "Available Options:",
+            "message": "Available Options:",
+            "translation": ""
+        },
+        {
+            "id": "Example:",
+            "message": "Example:",
+            "translation": ""
+        },
+        {
+            "id": "go run zasm-go.go test.asm output.86p",
+            "message": "go run zasm-go.go test.asm output.86p",
+            "translation": ""
+        },
+        {
+            "id": "zasm-go test.asm output.86p",
+            "message": "zasm-go test.asm output.86p",
+            "translation": ""
+        },
+        {
+            "id": [
+                "formatStr",
+                "❌ {ColorRed}{Msg}{ColorReset}"
+            ],
+            "message": "❌ {ColorRed}{Msg}{ColorReset}",
+            "translation": "",
+            "placeholders": [
+                {
+                    "id": "ColorRed",
+                    "string": "%[1]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 1,
+                    "expr": "colorRed"
+                },
+                {
+                    "id": "Msg",
+                    "string": "%[2]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 2,
+                    "expr": "msg"
+                },
+                {
+                    "id": "ColorReset",
+                    "string": "%[3]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 3,
+                    "expr": "colorReset"
+                }
+            ]
+        },
+        {
+            "id": "{ColorGreen}{OutputFile}{ColorReset}",
+            "message": "{ColorGreen}{OutputFile}{ColorReset}",
+            "translation": "",
+            "placeholders": [
+                {
+                    "id": "ColorGreen",
+                    "string": "%[1]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 1,
+                    "expr": "colorGreen"
+                },
+                {
+                    "id": "OutputFile",
+                    "string": "%[2]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 2,
+                    "expr": "cfg.OutputFile"
+                },
+                {
+                    "id": "ColorReset",
+                    "string": "%[3]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 3,
+                    "expr": "colorReset"
+                }
+            ]
+        },
+        {
+            "id": "{ColorGreen}{OutputString}{ColorReset}",
+            "message": "{ColorGreen}{OutputString}{ColorReset}",
+            "translation": "",
+            "placeholders": [
+                {
+                    "id": "ColorGreen",
+                    "string": "%[1]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 1,
+                    "expr": "colorGreen"
+                },
+                {
+                    "id": "OutputString",
+                    "string": "%[2]t",
+                    "type": "bool",
+                    "underlyingType": "bool",
+                    "argNum": 2,
+                    "expr": "cfg.OutputString"
+                },
+                {
+                    "id": "ColorReset",
+                    "string": "%[3]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 3,
+                    "expr": "colorReset"
+                }
+            ]
+        }
+    ]
+}

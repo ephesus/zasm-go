@@ -2,13 +2,17 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"os"
+
+	"golang.org/x/text/language"
+	"golang.org/x/text/message"
 
 	"zasm-go/passer"
 )
 
 const DEBUG = true
+
+var p *message.Printer = message.NewPrinter(language.English)
 
 //Config is the global configuration settings
 type Config struct {
@@ -70,27 +74,27 @@ const (
 )
 
 func showHelp() {
-	fmt.Fprintf(os.Stderr, "=========================================\n")
-	fmt.Fprintf(os.Stderr, "                 Zasm-go                 \n")
-	fmt.Fprintf(os.Stderr, "=========================================\n")
-	fmt.Fprintf(os.Stderr, "Usage: go run main.go [options] srcfile outfile\n\n")
-	fmt.Fprintf(os.Stderr, "Available Options:\n")
+	p.Fprintf(os.Stderr, "=========================================\n")
+	p.Fprintf(os.Stderr, "                 Zasm-go                 \n")
+	p.Fprintf(os.Stderr, "=========================================\n")
+	p.Fprintf(os.Stderr, "Usage: go run main.go [options] srcfile outfile\n\n")
+	p.Fprintf(os.Stderr, "Available Options:\n")
 	flag.PrintDefaults() 
-	fmt.Fprintf(os.Stderr, "\nExample:\n")
-	fmt.Fprintf(os.Stderr, "  go run zasm-go.go test.asm output.86p\n")
-	fmt.Fprintf(os.Stderr, "  zasm-go test.asm output.86p\n")
-	fmt.Fprintf(os.Stderr, "=========================================\n")
+	p.Fprintf(os.Stderr, "\nExample:\n")
+	p.Fprintf(os.Stderr, "  go run zasm-go.go test.asm output.86p\n")
+	p.Fprintf(os.Stderr, "  zasm-go test.asm output.86p\n")
+	p.Fprintf(os.Stderr, "=========================================\n")
 }
 
 func errorExit(msg string) {
 	var formatStr string
 	if cfg.DoColor {
-		formatStr = "%s%s%s"	
+		formatStr = "❌ %s%s%s"	
 	} else {
 		formatStr = "%s"
 	}
 
-	fmt.Fprintf(os.Stderr, formatStr, colorRed, msg, colorReset)
+	p.Fprintf(os.Stderr, formatStr, colorRed, msg, colorReset)
 	os.Exit(1)
 }
 
@@ -100,9 +104,9 @@ func main() {
 	passer.Pass()
 
 	if DEBUG {
-		fmt.Fprintf(os.Stdout, "%s%s%s\n", colorGreen, cfg.OutputFile, colorReset)
-		fmt.Fprintf(os.Stdout, "%s%s%s\n", colorGreen, cfg.InputFile, colorReset)
-		fmt.Fprintf(os.Stdout, "%s%t%s\n", colorGreen, cfg.OutputString, colorReset)
+		p.Fprintf(os.Stdout, "%s%s%s\n", colorGreen, cfg.OutputFile, colorReset)
+		p.Fprintf(os.Stdout, "%s%s%s\n", colorGreen, cfg.InputFile, colorReset)
+		p.Fprintf(os.Stdout, "%s%t%s\n", colorGreen, cfg.OutputString, colorReset)
 	}
 }
 
