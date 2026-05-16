@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"flag"
 	"os"
+	"zasm-go/passer"
 )
 
 
@@ -44,4 +45,6 @@ func main() {
 	fmt.Println(*inputfile)
 	fmt.Println(*outputfile)	
 	fmt.Println(*outputstring)	
+
+	passer.Pass()
 }
