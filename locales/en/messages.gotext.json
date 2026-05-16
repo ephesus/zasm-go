@@ -1,0 +1,149 @@
+{
+    "language": "en",
+    "messages": [
+        {
+            "id": "Zasm-go",
+            "message": "Zasm-go",
+            "translation": "Zasm-go",
+            "translatorComment": "Copied from source.",
+            "fuzzy": true
+        },
+        {
+            "id": "Usage: go run main.go [options] srcfile outfile",
+            "message": "Usage: go run main.go [options] srcfile outfile",
+            "translation": "Usage: go run main.go [options] srcfile outfile",
+            "translatorComment": "Copied from source.",
+            "fuzzy": true
+        },
+        {
+            "id": "Available Options:",
+            "message": "Available Options:",
+            "translation": "Available Options:",
+            "translatorComment": "Copied from source.",
+            "fuzzy": true
+        },
+        {
+            "id": "Example:",
+            "message": "Example:",
+            "translation": "Example:",
+            "translatorComment": "Copied from source.",
+            "fuzzy": true
+        },
+        {
+            "id": "go run zasm-go.go test.asm output.86p",
+            "message": "go run zasm-go.go test.asm output.86p",
+            "translation": "go run zasm-go.go test.asm output.86p",
+            "translatorComment": "Copied from source.",
+            "fuzzy": true
+        },
+        {
+            "id": "zasm-go test.asm output.86p",
+            "message": "zasm-go test.asm output.86p",
+            "translation": "zasm-go test.asm output.86p",
+            "translatorComment": "Copied from source.",
+            "fuzzy": true
+        },
+        {
+            "id": [
+                "formatStr",
+                "❌ {ColorRed}{Msg}{ColorReset}"
+            ],
+            "message": "❌ {ColorRed}{Msg}{ColorReset}",
+            "translation": "❌ {ColorRed}{Msg}{ColorReset}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "ColorRed",
+                    "string": "%[1]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 1,
+                    "expr": "colorRed"
+                },
+                {
+                    "id": "Msg",
+                    "string": "%[2]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 2,
+                    "expr": "msg"
+                },
+                {
+                    "id": "ColorReset",
+                    "string": "%[3]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 3,
+                    "expr": "colorReset"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "{ColorGreen}{OutputFile}{ColorReset}",
+            "message": "{ColorGreen}{OutputFile}{ColorReset}",
+            "translation": "{ColorGreen}{OutputFile}{ColorReset}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "ColorGreen",
+                    "string": "%[1]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 1,
+                    "expr": "colorGreen"
+                },
+                {
+                    "id": "OutputFile",
+                    "string": "%[2]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 2,
+                    "expr": "cfg.OutputFile"
+                },
+                {
+                    "id": "ColorReset",
+                    "string": "%[3]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 3,
+                    "expr": "colorReset"
+                }
+            ],
+            "fuzzy": true
+        },
+        {
+            "id": "{ColorGreen}{OutputString}{ColorReset}",
+            "message": "{ColorGreen}{OutputString}{ColorReset}",
+            "translation": "{ColorGreen}{OutputString}{ColorReset}",
+            "translatorComment": "Copied from source.",
+            "placeholders": [
+                {
+                    "id": "ColorGreen",
+                    "string": "%[1]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 1,
+                    "expr": "colorGreen"
+                },
+                {
+                    "id": "OutputString",
+                    "string": "%[2]t",
+                    "type": "bool",
+                    "underlyingType": "bool",
+                    "argNum": 2,
+                    "expr": "cfg.OutputString"
+                },
+                {
+                    "id": "ColorReset",
+                    "string": "%[3]s",
+                    "type": "string",
+                    "underlyingType": "string",
+                    "argNum": 3,
+                    "expr": "colorReset"
+                }
+            ],
+            "fuzzy": true
+        }
+    ]
+}
