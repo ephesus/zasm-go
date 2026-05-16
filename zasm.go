@@ -4,26 +4,32 @@ import (
 	"flag"
 	"fmt"
 	"os"
+
 	"zasm-go/passer"
 )
 
+const DEBUG = true
+
+//Config is the global configuration settings
 type Config struct {
 	InputFile    string
 	OutputFile   string
 	OutputString bool
+	DoColor      bool
 }
+var cfg Config
 
 func parseFlags() Config {
 	inputfileFlag := flag.String("inputfile", "", "z80 source code input file")
 	outputfileFlag := flag.String("outputfile", "", "Name of output file to save assembled\nbinary filename.86p")
 	outputstringFlag := flag.Bool("outputstring", false, "Output as a string filename.86s")
+	doColorFlag := flag.Bool("color", true, "Colorize output when available")
 
 	flag.Usage = showHelp
 	flag.Parse()
 
-	// Initialize our configuration struct
-	var cfg Config
 	cfg.OutputString = *outputstringFlag
+	cfg.DoColor = *doColorFlag
 
 	// Resolve Input File
 	if *inputfileFlag != "" {
@@ -77,7 +83,14 @@ func showHelp() {
 }
 
 func errorExit(msg string) {
-	fmt.Fprintf(os.Stderr, "%s%s%s", colorRed, msg, colorReset)
+	var formatStr string
+	if cfg.DoColor {
+		formatStr = "%s%s%s"	
+	} else {
+		formatStr = "%s"
+	}
+
+	fmt.Fprintf(os.Stderr, formatStr, colorRed, msg, colorReset)
 	os.Exit(1)
 }
 
@@ -86,9 +99,11 @@ func main() {
 
 	passer.Pass()
 
-	fmt.Println(cfg.OutputFile)
-	fmt.Println(cfg.InputFile)
-	fmt.Println(cfg.OutputString)
+	if DEBUG {
+		fmt.Fprintf(os.Stdout, "%s%s%s\n", colorGreen, cfg.OutputFile, colorReset)
+		fmt.Fprintf(os.Stdout, "%s%s%s\n", colorGreen, cfg.InputFile, colorReset)
+		fmt.Fprintf(os.Stdout, "%s%t%s\n", colorGreen, cfg.OutputString, colorReset)
+	}
 }
 
 
