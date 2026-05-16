@@ -6,6 +6,19 @@ import (
 	"os"
 )
 
+
+const (
+		colorReset  = "\033[0m"
+		colorBlue   = "\033[38;5;75m"
+		colorGray   = "\033[38;5;243m"
+		colorOrange = "\033[38;5;215m"
+		colorPurple = "\033[38;5;141m"
+		colorWhite  = "\033[38;5;255m"
+		colorGreen  = "\033[38;5;150m"
+		bold        = "\033[1m"
+		dim         = "\033[2m"
+)
+
 func showHelp() {
 	fmt.Fprintf(os.Stderr, "=========================================\n")
 	fmt.Fprintf(os.Stderr, "                 Zasm-go                 \n")
