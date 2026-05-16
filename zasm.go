@@ -7,6 +7,48 @@ import (
 	"zasm-go/passer"
 )
 
+type Config struct {
+	InputFile    string
+	OutputFile   string
+	OutputString bool
+}
+
+func parseFlags() Config {
+	inputfileFlag := flag.String("inputfile", "", "z80 source code input file")
+	outputfileFlag := flag.String("outputfile", "", "Name of output file to save assembled\nbinary filename.86p")
+	outputstringFlag := flag.Bool("outputstring", false, "Output as a string filename.86s")
+
+	flag.Usage = showHelp
+	flag.Parse()
+
+	// Initialize our configuration struct
+	var cfg Config
+	cfg.OutputString = *outputstringFlag
+
+	// Resolve Input File
+	if *inputfileFlag != "" {
+		cfg.InputFile = *inputfileFlag
+	} else if len(flag.Args()) > 0 {
+		cfg.InputFile = flag.Arg(0)
+	} else {
+		errorExit("Error: missing input file\n")
+	}
+
+	// Resolve Output File
+	if *outputfileFlag != "" {
+		cfg.OutputFile = *outputfileFlag
+	} else if len(flag.Args()) > 0 {
+		cfg.OutputFile = flag.Arg(len(flag.Args()) - 1)
+	}
+
+	// Post-parsing relationship validations
+	if (cfg.InputFile == cfg.OutputFile) || (cfg.OutputFile == "") {
+		errorExit("Error: missing or invalid output filename\n")
+	}
+
+	// Return the populated config object back to main
+	return cfg
+}
 
 const (
 		colorReset  = "\033[0m"
@@ -40,45 +82,13 @@ func errorExit(msg string) {
 }
 
 func main() {
-	var inputFile string
-	var outputFile string
-	var outputString bool
-
-	inputfileFlag := flag.String("inputfile", "", "z80 source code input file")
-	outputfileFlag := flag.String("outputfile", "", "Name of output file to save assembled\nbinary filename.86p")
-	outputstringFlag := flag.Bool("outputstring", false, "Output as a string filename.86s")
-
-	flag.Usage = showHelp
-
-	flag.Parse()
-
-	outputString = *outputstringFlag
-
-	//if --innputfile is not set, use first positional param
-	if *inputfileFlag != "" {
-		inputFile = *inputfileFlag
-	} else if len(flag.Args()) > 0 {
-		inputFile = flag.Arg(0)
-	} else {
-		errorExit("Error: missing input file\n")
-	}
-
-	//if --outputfile is not set, use first or second positional param
-	if *outputfileFlag != "" {
-		outputFile = *outputfileFlag
-	} else if len(flag.Args()) > 0 {
-		outputFile = flag.Arg(len(flag.Args())-1)
-	} 
-
-	if (inputFile == outputFile) || (outputFile == "") {
-		errorExit("Error: missing output filename\n")
-	}
+	var cfg = parseFlags()
 
 	passer.Pass()
 
-	fmt.Println(outputString)
-	fmt.Println(inputFile)
-	fmt.Println(outputFile)
+	fmt.Println(cfg.OutputFile)
+	fmt.Println(cfg.InputFile)
+	fmt.Println(cfg.OutputString)
 }
 
 
