@@ -1,8 +1,8 @@
 package main
 
 import (
-	"fmt"
 	"flag"
+	"fmt"
 	"os"
 	"zasm-go/passer"
 )
@@ -11,6 +11,7 @@ import (
 const (
 		colorReset  = "\033[0m"
 		colorBlue   = "\033[38;5;75m"
+		colorRed    = "\033[31m"
 		colorGray   = "\033[38;5;243m"
 		colorOrange = "\033[38;5;215m"
 		colorPurple = "\033[38;5;141m"
@@ -33,18 +34,53 @@ func showHelp() {
 	fmt.Fprintf(os.Stderr, "=========================================\n")
 }
 
+func errorExit(msg string) {
+	fmt.Fprintf(os.Stderr, "%s%s%s", colorRed, msg, colorReset)
+	os.Exit(1)
+}
+
 func main() {
-	inputfile := flag.String("inputfile", "", "z80 source code input file")
-	outputfile := flag.String("outputfile", "z.out", "Name of output file to save assembled\nbinary filename.86p")
-	outputstring := flag.Bool("outputstring", false, "Output as a string filename.86s")
+	var inputFile string
+	var outputFile string
+	var outputString bool
+
+	inputfileFlag := flag.String("inputfile", "", "z80 source code input file")
+	outputfileFlag := flag.String("outputfile", "", "Name of output file to save assembled\nbinary filename.86p")
+	outputstringFlag := flag.Bool("outputstring", false, "Output as a string filename.86s")
 
 	flag.Usage = showHelp
 
 	flag.Parse()
 
-	fmt.Println(*inputfile)
-	fmt.Println(*outputfile)	
-	fmt.Println(*outputstring)	
+	outputString = *outputstringFlag
+
+	//if --innputfile is not set, use first positional param
+	if *inputfileFlag != "" {
+		inputFile = *inputfileFlag
+	} else if len(flag.Args()) > 0 {
+		inputFile = flag.Arg(0)
+	} else {
+		errorExit("Error: missing input file\n")
+	}
+
+	//if --outputfile is not set, use first or second positional param
+	if *outputfileFlag != "" {
+		outputFile = *outputfileFlag
+	} else if len(flag.Args()) > 0 {
+		outputFile = flag.Arg(len(flag.Args())-1)
+	} 
+
+	if (inputFile == outputFile) || (outputFile == "") {
+		errorExit("Error: missing output filename\n")
+	}
 
 	passer.Pass()
+
+	fmt.Println(outputString)
+	fmt.Println(inputFile)
+	fmt.Println(outputFile)
 }
+
+
+
+
