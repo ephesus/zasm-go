@@ -10,6 +10,7 @@ import (
 	"zasm-go/passer"
 )
 
+//when set to false, all DEBUG sections will be removed by compiler optimization
 const DEBUG = true
 
 var p *message.Printer = message.NewPrinter(language.English)
@@ -74,9 +75,6 @@ const (
 )
 
 func showHelp() {
-	p.Fprintf(os.Stderr, "=========================================\n")
-	p.Fprintf(os.Stderr, "                 Zasm-go                 \n")
-	p.Fprintf(os.Stderr, "=========================================\n")
 	p.Fprintf(os.Stderr, "Usage: go run main.go [options] srcfile outfile\n\n")
 	p.Fprintf(os.Stderr, "Available Options:\n")
 	flag.PrintDefaults() 
@@ -98,11 +96,15 @@ func errorExit(msg string) {
 	os.Exit(1)
 }
 
+//main() is the entrypoint
 func main() {
+	//all global configuration is stored in the cfg
 	var cfg = parseFlags()
 
+	//do a first pass
 	passer.Pass()
 
+	//this will be optimized out by the compiler
 	if DEBUG {
 		p.Fprintf(os.Stdout, "%s%s%s\n", colorGreen, cfg.OutputFile, colorReset)
 		p.Fprintf(os.Stdout, "%s%s%s\n", colorGreen, cfg.InputFile, colorReset)
