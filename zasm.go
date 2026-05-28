@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"os"
+	"fmt"
 
 	"golang.org/x/text/language"
 	"golang.org/x/text/message"
@@ -10,7 +11,7 @@ import (
 	"zasm-go/passer"
 )
 
-//when set to false, all DEBUG sections will be removed by compiler optimization
+// DEBUG sections will be removed by compiler optimization when set to "false"
 const DEBUG = true
 
 var p *message.Printer = message.NewPrinter(language.English)
@@ -28,7 +29,7 @@ func parseFlags() Config {
 	inputfileFlag := flag.String("inputfile", "", "z80 source code input file")
 	outputfileFlag := flag.String("outputfile", "", "Name of output file to save assembled\nbinary filename.86p")
 	outputstringFlag := flag.Bool("outputstring", false, "Output as a string filename.86s")
-	doColorFlag := flag.Bool("color", true, "Colorize output when available")
+	doColorFlag := flag.Bool("color", true, "Colorize output when available (1=on or 0=off)")
 
 	flag.Usage = showHelp
 	flag.Parse()
@@ -106,9 +107,12 @@ func main() {
 
 	//this will be optimized out by the compiler
 	if DEBUG {
-		p.Fprintf(os.Stdout, "%s%s%s\n", colorGreen, cfg.OutputFile, colorReset)
-		p.Fprintf(os.Stdout, "%s%s%s\n", colorGreen, cfg.InputFile, colorReset)
-		p.Fprintf(os.Stdout, "%s%t%s\n", colorGreen, cfg.OutputString, colorReset)
+		fmt.Println("Debug INFO:")
+		fmt.Println("----------------")
+		p.Fprintf(os.Stdout, "outputfile: %s\t\t%s%s\n", colorGreen, cfg.OutputFile, colorReset)
+		p.Fprintf(os.Stdout, "inputfile: %s\t\t%s%s\n", colorGreen, cfg.InputFile, colorReset)
+		p.Fprintf(os.Stdout, "output as .86s: %s\t%t%s\n", colorGreen, cfg.OutputString, colorReset)
+		p.Fprintf(os.Stdout, "do color: %s\t\t%t%s\n", colorGreen, cfg.DoColor, colorReset)
 	}
 }
 
