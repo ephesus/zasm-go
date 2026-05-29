@@ -12,10 +12,10 @@ starting:
   ld a, b
   ld (hl), a
   add a, 15
-  ret
-`
-	l := NewLexer(input)
-	p := NewParser(l)
+  ret `
+
+	zlexer := NewLexer(input)
+	p := NewParser(zlexer)
 	lines := p.Parse()
 
 	expectedLines := []struct {

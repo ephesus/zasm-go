@@ -52,6 +52,7 @@ type Operand struct {
     Value string
 }
 
+//Line will only have a subset of these fields set, ex. a label will only have Label and Assignment
 type Line struct {
     Label      string
     Mnemonic   string
@@ -62,7 +63,7 @@ type Line struct {
     Tokens     []Token // optionally keep tokens for debugging
 }
 
-type SymbolTable map[string]int
+type SymbolTable map[string]int //z80 is only 16 bit words
 
 type Parser struct {
     lexer        *Lexer

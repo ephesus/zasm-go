@@ -1,5 +1,7 @@
-Zasm-go
+Zasm
 
-Z80 assembler written in go.
+Under development, Hobby Z80 assembler written in go.
+Intended for use with ti-86 and nintendo gameboy assemby code.
 
-by James Rubingh ephesus@gmail.com
+
+by James Rubingh james@wrive.com

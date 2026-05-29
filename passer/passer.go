@@ -47,6 +47,7 @@ func (p *Parser) parseLine() *Line {
 	}
 
 	// Handle Label or Assignment
+	// Not using a switch statement because of lines like "mylabel: ld a, b" get complicated
 	if p.currentToken.Type == TokenIdentifier {
 		if p.peekToken.Type == TokenColon {
 			line.Label = p.currentToken.Value

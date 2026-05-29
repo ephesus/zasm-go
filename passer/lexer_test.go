@@ -19,6 +19,8 @@ label1:
   .db 0, 1, 2
 `
 
+	//try a table driven test 
+	//labels are TokenIdentifier
 	tests := []struct {
 		expectedType  TokenType
 		expectedValue string

@@ -28,13 +28,13 @@ var cfg Config
 func parseFlags() Config {
 	inputfileFlag := flag.String("inputfile", "", "z80 source code input file")
 	outputfileFlag := flag.String("outputfile", "", "Name of output file to save assembled\nbinary filename.86p")
-	outputstringFlag := flag.Bool("outputstring", false, "Output as a string filename.86s")
+	outputAsStringFlag := flag.Bool("outputstring", false, "Output as a string filename.86s")
 	doColorFlag := flag.Bool("color", true, "Colorize output when available (1=on or 0=off)")
 
 	flag.Usage = showHelp
 	flag.Parse()
 
-	cfg.OutputString = *outputstringFlag
+	cfg.OutputString = *outputAsStringFlag
 	cfg.DoColor = *doColorFlag
 
 	// Resolve Input File
@@ -87,7 +87,9 @@ func showHelp() {
 
 func errorExit(msg string) {
 	var formatStr string
-	if cfg.DoColor {
+	fmt.Println(cfg.DoColor)
+
+	if cfg.DoColor == true {
 		formatStr = "❌ %s%s%s"	
 	} else {
 		formatStr = "%s"
@@ -97,6 +99,38 @@ func errorExit(msg string) {
 	os.Exit(1)
 }
 
+//debugPrint simply prints out log messages for debugging (sometimes with color)
+func debugPrint(desc string, message any)  {
+	var formatStr string
+
+	switch message.(type) {
+	case bool:
+		if cfg.DoColor == true {
+			formatStr = " %s\t\t%t%s\n"
+			p.Fprintf(os.Stdout, desc + formatStr, colorGreen, message, colorReset)
+		} else {
+			formatStr = " %t\n"
+			p.Fprintf(os.Stdout, desc + formatStr, message)
+		}
+	case int:
+		if cfg.DoColor == true {
+			formatStr = " %s\t\t%d%s\n"
+			p.Fprintf(os.Stdout, desc+formatStr, colorGreen, message, colorReset)
+		} else {
+			formatStr = " %d\n"
+			p.Fprintf(os.Stdout, desc+formatStr, message)
+		}
+	default:
+		//default to string
+		if cfg.DoColor == true {
+			formatStr = " %s\t\t%s%s\n"	
+			p.Fprintf(os.Stdout, desc + formatStr, colorGreen, message, colorReset)
+		} else {
+			formatStr = " %s\n"
+			p.Fprintf(os.Stdout, desc + formatStr, message)
+		}
+	}
+}
 //main() is the entrypoint
 func main() {
 	//all global configuration is stored in the cfg
@@ -109,10 +143,10 @@ func main() {
 	if DEBUG {
 		fmt.Println("Debug INFO:")
 		fmt.Println("----------------")
-		p.Fprintf(os.Stdout, "outputfile: %s\t\t%s%s\n", colorGreen, cfg.OutputFile, colorReset)
-		p.Fprintf(os.Stdout, "inputfile: %s\t\t%s%s\n", colorGreen, cfg.InputFile, colorReset)
-		p.Fprintf(os.Stdout, "output as .86s: %s\t%t%s\n", colorGreen, cfg.OutputString, colorReset)
-		p.Fprintf(os.Stdout, "do color: %s\t\t%t%s\n", colorGreen, cfg.DoColor, colorReset)
+		debugPrint("outputfile:", cfg.OutputFile)
+		debugPrint("inputfile:", cfg.InputFile)
+		debugPrint("output as .86s:", cfg.OutputString)
+		debugPrint("do color:", cfg.DoColor)
 	}
 }
 
