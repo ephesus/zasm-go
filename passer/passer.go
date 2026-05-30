@@ -5,10 +5,11 @@
 //and a second pass backfills addresses, finishing preparation for the binary generation
 package passer
 
-func NewParser(l *Lexer) *Parser {
+func NewParser(l *Lexer, encoding EncodingTable) *Parser {
 	p := &Parser{
 		lexer:       l,
 		SymbolTable: make(SymbolTable),
+		Encoding:    encoding,
 	}
 
 	// Read two tokens, so currentToken and peekToken are both set
@@ -47,6 +48,7 @@ func (p *Parser) parseLine() *Line {
 	}
 
 	// Handle Label or Assignment
+	// Not using a switch statement because of lines like "mylabel: ld a, b" get complicated
 	if p.currentToken.Type == TokenIdentifier {
 		if p.peekToken.Type == TokenColon {
 			line.Label = p.currentToken.Value
@@ -163,6 +165,7 @@ func (p *Parser) skipUntilNewline() {
 	}
 }
 
-func Pass() {
-	// This will be called from main
+func Pass(encoding EncodingTable) {
+	//implement later
+	_ = encoding
 }
