@@ -30,7 +30,7 @@ var cfg Config
 func parseFlags() Config {
 	inputfileFlag := flag.String("inputfile", "", "z80 source code input file")
 	outputfileFlag := flag.String("outputfile", "", "Name of output file to save assembled\nbinary filename.86p")
-	tabfileFlag := flag.String("tabfile", "assets/zasm.tab", "Path to TASM-format encoding table")
+	tabfileFlag := flag.String("tabfile", "assets/TASM80.TAB", "Path to TASM-format encoding table")
 	outputAsStringFlag := flag.Bool("outputstring", false, "Output as a string filename.86s")
 	doColorFlag := flag.Bool("color", true, "Colorize output when available (1=on or 0=off)")
 

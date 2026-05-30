@@ -166,5 +166,6 @@ func (p *Parser) skipUntilNewline() {
 }
 
 func Pass(encoding EncodingTable) {
+	//implement later
 	_ = encoding
 }
