@@ -5,10 +5,11 @@
 //and a second pass backfills addresses, finishing preparation for the binary generation
 package passer
 
-func NewParser(l *Lexer) *Parser {
+func NewParser(l *Lexer, encoding EncodingTable) *Parser {
 	p := &Parser{
 		lexer:       l,
 		SymbolTable: make(SymbolTable),
+		Encoding:    encoding,
 	}
 
 	// Read two tokens, so currentToken and peekToken are both set
@@ -164,6 +165,6 @@ func (p *Parser) skipUntilNewline() {
 	}
 }
 
-func Pass() {
-	// This will be called from main
+func Pass(encoding EncodingTable) {
+	_ = encoding
 }

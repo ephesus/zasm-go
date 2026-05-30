@@ -4,6 +4,7 @@ import (
 	"flag"
 	"os"
 	"fmt"
+	"log"
 
 	"golang.org/x/text/language"
 	"golang.org/x/text/message"
@@ -20,6 +21,7 @@ var p *message.Printer = message.NewPrinter(language.English)
 type Config struct {
 	InputFile    string
 	OutputFile   string
+	TabFile      string
 	OutputString bool
 	DoColor      bool
 }
@@ -28,12 +30,14 @@ var cfg Config
 func parseFlags() Config {
 	inputfileFlag := flag.String("inputfile", "", "z80 source code input file")
 	outputfileFlag := flag.String("outputfile", "", "Name of output file to save assembled\nbinary filename.86p")
+	tabfileFlag := flag.String("tabfile", "assets/zasm.tab", "Path to TASM-format encoding table")
 	outputAsStringFlag := flag.Bool("outputstring", false, "Output as a string filename.86s")
 	doColorFlag := flag.Bool("color", true, "Colorize output when available (1=on or 0=off)")
 
 	flag.Usage = showHelp
 	flag.Parse()
 
+	cfg.TabFile = *tabfileFlag
 	cfg.OutputString = *outputAsStringFlag
 	cfg.DoColor = *doColorFlag
 
@@ -136,8 +140,20 @@ func main() {
 	//all global configuration is stored in the cfg
 	var cfg = parseFlags()
 
+	// Load the encoding table
+	f, err := os.Open(cfg.TabFile)
+	if err != nil {
+		log.Fatalf("Error opening tab file %s: %v", cfg.TabFile, err)
+	}
+	defer f.Close()
+
+	encoding, err := passer.LoadTabFile(f)
+	if err != nil {
+		log.Fatalf("Error loading tab file %s: %v", cfg.TabFile, err)
+	}
+
 	//do a first pass
-	passer.Pass()
+	passer.Pass(encoding)
 
 	//this will be optimized out by the compiler
 	if DEBUG {

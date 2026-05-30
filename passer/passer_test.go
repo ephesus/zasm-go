@@ -15,7 +15,7 @@ starting:
   ret `
 
 	zlexer := NewLexer(input)
-	p := NewParser(zlexer)
+	p := NewParser(zlexer, nil)
 	lines := p.Parse()
 
 	expectedLines := []struct {
