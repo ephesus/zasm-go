@@ -151,6 +151,7 @@ func (l *Lexer) readString() string {
 	return s
 }
 
+//view the next character without advancing the position pointer
 func (l *Lexer) peekChar() byte {
 	if l.readPosition >= len(l.input) {
 		return 0
