@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"sort"
 
 	"golang.org/x/text/language"
 	"golang.org/x/text/message"
@@ -26,6 +27,7 @@ type Config struct {
 	DoColor        bool
 }
 
+//global instance of settings
 var cfg Config
 
 func parseFlags() Config {
@@ -137,6 +139,26 @@ func debugPrint(desc string, message any) {
 	}
 }
 
+// debugPrintTableFile prints every entry in the EncodingTable
+func debugPrintTableFile(table passer.EncodingTable) {
+	fmt.Println("Table File hasmap:")
+
+	mnemonics := make([]string, 0, len(table))
+	for mnemonic := range table {
+		mnemonics = append(mnemonics, mnemonic)
+	}
+	sort.Strings(mnemonics) //hashmaps aren't ordered, so sort first
+
+	for _, mnemonic := range mnemonics {
+		entries := table[mnemonic]
+		p.Printf("%s (%d):\n", mnemonic, len(entries))
+		for _, e := range entries {
+			p.Printf("    operands=%-12s opcode=%-8s size=%d encoding=%s\n",
+				e.Operands, e.Opcode, e.Size, e.Encoding)
+		}
+	}
+}
+
 // main() is the entrypoint
 func main() {
 	//all global configuration is stored in the cfg
@@ -165,5 +187,6 @@ func main() {
 		debugPrint("inputfile:", cfg.InputFile)
 		debugPrint("output as .86s:", cfg.OutputAsString)
 		debugPrint("do color:", cfg.DoColor)
+		debugPrintTableFile(TableFile)
 	}
 }

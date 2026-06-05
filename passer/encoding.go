@@ -14,6 +14,8 @@ type TabEntry struct {
 	Encoding string
 }
 
+//each mnumonic like "ADD" will have a TabEntry for each pattern
+//of operands, like B, C, or HL, BC, etc. (ADD will have 27 variations, from TASM80.TAB)
 type EncodingTable map[string][]TabEntry
 
 func LoadTabFile(r io.Reader) (EncodingTable, error) {
