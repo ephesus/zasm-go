@@ -2,9 +2,9 @@ package main
 
 import (
 	"flag"
-	"os"
 	"fmt"
 	"log"
+	"os"
 
 	"golang.org/x/text/language"
 	"golang.org/x/text/message"
@@ -17,14 +17,15 @@ const DEBUG = true
 
 var p *message.Printer = message.NewPrinter(language.English)
 
-//Config is the global configuration settings
+// Config is the global configuration settings
 type Config struct {
-	InputFile    string
-	OutputFile   string
-	TabFile      string
-	OutputString bool
-	DoColor      bool
+	InputFile      string
+	OutputFile     string
+	TabFile        string
+	OutputAsString bool
+	DoColor        bool
 }
+
 var cfg Config
 
 func parseFlags() Config {
@@ -38,7 +39,7 @@ func parseFlags() Config {
 	flag.Parse()
 
 	cfg.TabFile = *tabfileFlag
-	cfg.OutputString = *outputAsStringFlag
+	cfg.OutputAsString = *outputAsStringFlag
 	cfg.DoColor = *doColorFlag
 
 	// Resolve Input File
@@ -67,22 +68,22 @@ func parseFlags() Config {
 }
 
 const (
-		colorReset  = "\033[0m"
-		colorBlue   = "\033[38;5;75m"
-		colorRed    = "\033[31m"
-		colorGray   = "\033[38;5;243m"
-		colorOrange = "\033[38;5;215m"
-		colorPurple = "\033[38;5;141m"
-		colorWhite  = "\033[38;5;255m"
-		colorGreen  = "\033[38;5;150m"
-		bold        = "\033[1m"
-		dim         = "\033[2m"
+	colorReset  = "\033[0m"
+	colorBlue   = "\033[38;5;75m"
+	colorRed    = "\033[31m"
+	colorGray   = "\033[38;5;243m"
+	colorOrange = "\033[38;5;215m"
+	colorPurple = "\033[38;5;141m"
+	colorWhite  = "\033[38;5;255m"
+	colorGreen  = "\033[38;5;150m"
+	bold        = "\033[1m"
+	dim         = "\033[2m"
 )
 
 func showHelp() {
 	p.Fprintf(os.Stderr, "Usage: go run main.go [options] srcfile outfile\n\n")
 	p.Fprintf(os.Stderr, "Available Options:\n")
-	flag.PrintDefaults() 
+	flag.PrintDefaults()
 	p.Fprintf(os.Stderr, "\nExample:\n")
 	p.Fprintf(os.Stderr, "  go run zasm-go.go test.asm output.86p\n")
 	p.Fprintf(os.Stderr, "  zasm-go test.asm output.86p\n")
@@ -94,7 +95,7 @@ func errorExit(msg string) {
 	fmt.Println(cfg.DoColor)
 
 	if cfg.DoColor == true {
-		formatStr = "❌ %s%s%s"	
+		formatStr = "❌ %s%s%s"
 	} else {
 		formatStr = "%s"
 	}
@@ -103,18 +104,18 @@ func errorExit(msg string) {
 	os.Exit(1)
 }
 
-//debugPrint simply prints out log messages for debugging (sometimes with color)
-func debugPrint(desc string, message any)  {
+// debugPrint simply prints out log messages for debugging (sometimes with color)
+func debugPrint(desc string, message any) {
 	var formatStr string
 
 	switch message.(type) {
 	case bool:
 		if cfg.DoColor == true {
 			formatStr = " %s\t\t%t%s\n"
-			p.Fprintf(os.Stdout, desc + formatStr, colorGreen, message, colorReset)
+			p.Fprintf(os.Stdout, desc+formatStr, colorGreen, message, colorReset)
 		} else {
 			formatStr = " %t\n"
-			p.Fprintf(os.Stdout, desc + formatStr, message)
+			p.Fprintf(os.Stdout, desc+formatStr, message)
 		}
 	case int:
 		if cfg.DoColor == true {
@@ -127,15 +128,16 @@ func debugPrint(desc string, message any)  {
 	default:
 		//default to string
 		if cfg.DoColor == true {
-			formatStr = " %s\t\t%s%s\n"	
-			p.Fprintf(os.Stdout, desc + formatStr, colorGreen, message, colorReset)
+			formatStr = " %s\t\t%s%s\n"
+			p.Fprintf(os.Stdout, desc+formatStr, colorGreen, message, colorReset)
 		} else {
 			formatStr = " %s\n"
-			p.Fprintf(os.Stdout, desc + formatStr, message)
+			p.Fprintf(os.Stdout, desc+formatStr, message)
 		}
 	}
 }
-//main() is the entrypoint
+
+// main() is the entrypoint
 func main() {
 	//all global configuration is stored in the cfg
 	var cfg = parseFlags()
@@ -147,13 +149,13 @@ func main() {
 	}
 	defer f.Close()
 
-	encoding, err := passer.LoadTabFile(f)
+	TableFile, err := passer.LoadTabFile(f)
 	if err != nil {
 		log.Fatalf("Error loading tab file %s: %v", cfg.TabFile, err)
 	}
 
 	//do a first pass
-	passer.Pass(encoding)
+	passer.Pass(TableFile)
 
 	//this will be optimized out by the compiler
 	if DEBUG {
@@ -161,11 +163,7 @@ func main() {
 		fmt.Println("----------------")
 		debugPrint("outputfile:", cfg.OutputFile)
 		debugPrint("inputfile:", cfg.InputFile)
-		debugPrint("output as .86s:", cfg.OutputString)
+		debugPrint("output as .86s:", cfg.OutputAsString)
 		debugPrint("do color:", cfg.DoColor)
 	}
 }
-
-
-
-

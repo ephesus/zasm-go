@@ -97,8 +97,8 @@
             ]
         },
         {
-            "id": "{ColorGreen}{OutputString}{ColorReset}",
-            "message": "{ColorGreen}{OutputString}{ColorReset}",
+            "id": "{ColorGreen}{OutputAsString}{ColorReset}",
+            "message": "{ColorGreen}{OutputAsString}{ColorReset}",
             "translation": "",
             "placeholders": [
                 {
@@ -110,12 +110,12 @@
                     "expr": "colorGreen"
                 },
                 {
-                    "id": "OutputString",
+                    "id": "OutputAsString",
                     "string": "%[2]t",
                     "type": "bool",
                     "underlyingType": "bool",
                     "argNum": 2,
-                    "expr": "cfg.OutputString"
+                    "expr": "cfg.OutputAsString"
                 },
                 {
                     "id": "ColorReset",
