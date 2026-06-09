@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func TestLoadTabFile(t *testing.T) {
+func TestLoadTableFile(t *testing.T) {
 	tests := []struct {
 		name    string
 		input   string
@@ -46,7 +46,7 @@ func TestLoadTabFile(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			table, err := LoadTabFile(strings.NewReader(tt.input))
+			table, err := LoadTableFile(strings.NewReader(tt.input))
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("unexpected error: %v", err)
 			}
@@ -63,9 +63,9 @@ func TestLoadTabFile(t *testing.T) {
 	}
 }
 
-func TestLoadTabFileEntryFields(t *testing.T) {
+func TestLoadTableFileEntryFields(t *testing.T) {
 	input := "ADC  A,(HL)  8E   1 NOP 1"
-	table, err := LoadTabFile(strings.NewReader(input))
+	table, err := LoadTableFile(strings.NewReader(input))
 	if err != nil {
 		t.Fatal(err)
 	}

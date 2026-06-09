@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"sort"
 
 	"golang.org/x/text/language"
 	"golang.org/x/text/message"
@@ -22,7 +21,7 @@ var p *message.Printer = message.NewPrinter(language.English)
 type Config struct {
 	InputFile      string
 	OutputFile     string
-	TabFile        string
+	TableFile      string
 	OutputAsString bool
 	DoColor        bool
 }
@@ -40,7 +39,7 @@ func parseFlags() Config {
 	flag.Usage = showHelp
 	flag.Parse()
 
-	cfg.TabFile = *tabfileFlag
+	cfg.TableFile = *tabfileFlag
 	cfg.OutputAsString = *outputAsStringFlag
 	cfg.DoColor = *doColorFlag
 
@@ -95,7 +94,6 @@ func showHelp() {
 func errorExit(msg string) {
 	var formatStr string
 	fmt.Println(cfg.DoColor)
-
 	if cfg.DoColor == true {
 		formatStr = "❌ %s%s%s"
 	} else {
@@ -139,41 +137,21 @@ func debugPrint(desc string, message any) {
 	}
 }
 
-// debugPrintTableFile prints every entry in the EncodingTable
-func debugPrintTableFile(table passer.EncodingTable) {
-	fmt.Println("Table File hasmap:")
-
-	mnemonics := make([]string, 0, len(table))
-	for mnemonic := range table {
-		mnemonics = append(mnemonics, mnemonic)
-	}
-	sort.Strings(mnemonics) //hashmaps aren't ordered, so sort first
-
-	for _, mnemonic := range mnemonics {
-		entries := table[mnemonic]
-		p.Printf("%s (%d):\n", mnemonic, len(entries))
-		for _, e := range entries {
-			p.Printf("    operands=%-12s opcode=%-8s size=%d encoding=%s\n",
-				e.Operands, e.Opcode, e.Size, e.Encoding)
-		}
-	}
-}
-
 // main() is the entrypoint
 func main() {
 	//all global configuration is stored in the cfg
 	var cfg = parseFlags()
 
 	// Load the encoding table
-	f, err := os.Open(cfg.TabFile)
+	f, err := os.Open(cfg.TableFile)
 	if err != nil {
-		log.Fatalf("Error opening tab file %s: %v", cfg.TabFile, err)
+		log.Fatalf("Error opening tab file %s: %v", cfg.TableFile, err)
 	}
 	defer f.Close()
 
-	TableFile, err := passer.LoadTabFile(f)
+	TableFile, err := passer.LoadTableFile(f)
 	if err != nil {
-		log.Fatalf("Error loading tab file %s: %v", cfg.TabFile, err)
+		log.Fatalf("Error loading tab file %s: %v", cfg.TableFile, err)
 	}
 
 	//do a first pass
@@ -187,6 +165,6 @@ func main() {
 		debugPrint("inputfile:", cfg.InputFile)
 		debugPrint("output as .86s:", cfg.OutputAsString)
 		debugPrint("do color:", cfg.DoColor)
-		debugPrintTableFile(TableFile)
+		TableFile.DebugPrint()
 	}
 }
