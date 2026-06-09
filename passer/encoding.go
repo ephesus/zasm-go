@@ -2,7 +2,9 @@ package passer
 
 import (
 	"bufio"
+	"fmt"
 	"io"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -18,7 +20,30 @@ type TabEntry struct {
 //of operands, like B, C, or HL, BC, etc. (ADD will have 27 variations, from TASM80.TAB)
 type EncodingTable map[string][]TabEntry
 
-func LoadTabFile(r io.Reader) (EncodingTable, error) {
+// DebugPrint prints every entry in the EncodingTable
+func (table EncodingTable) DebugPrint() {
+	fmt.Println("Table File hasmap:")
+
+	mnemonics := make([]string, 0, len(table))
+	for mnemonic := range table {
+		mnemonics = append(mnemonics, mnemonic)
+	}
+	sort.Strings(mnemonics) //hashmaps aren't ordered, so sort first
+
+	for _, mnemonic := range mnemonics {
+		entries := table[mnemonic]
+		fmt.Printf("%s (%d):\n", mnemonic, len(entries))
+		for _, e := range entries {
+			fmt.Printf("    operands=%-12s opcode=%-8s size=%d encoding=%s\n",
+				e.Operands, e.Opcode, e.Size, e.Encoding)
+		}
+	}
+}
+
+//LoadTableFile loads up the TASM80.TAB file so the assembler knows which opcodes are
+//available, but it's only been tested with the TASM80.TAB file so might need some
+//more error checking to work with other .TAB files
+func LoadTableFile(r io.Reader) (EncodingTable, error) {
 	table := make(EncodingTable)
 	scanner := bufio.NewScanner(r)
 	for scanner.Scan() {
