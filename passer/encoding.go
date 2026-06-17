@@ -22,7 +22,7 @@ type EncodingTable map[string][]TabEntry
 
 // DebugPrint prints every entry in the EncodingTable
 func (table EncodingTable) DebugPrint() {
-	fmt.Println("Table File hasmap:")
+	fmt.Println("Table File hashmap:")
 
 	mnemonics := make([]string, 0, len(table))
 	for mnemonic := range table {

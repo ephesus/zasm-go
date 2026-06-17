@@ -154,8 +154,21 @@ func main() {
 		log.Fatalf("Error loading tab file %s: %v", cfg.TableFile, err)
 	}
 
-	//do a first pass
-	passer.Pass(TableFile)
+	// Read the source file
+	src, err := os.ReadFile(cfg.InputFile)
+	if err != nil {
+		log.Fatalf("Error reading input file %s: %v", cfg.InputFile, err)
+	}
+
+	// Lex and parse the source into lines
+	lexer := passer.NewLexer(string(src))
+	parser := passer.NewParser(lexer, TableFile)
+	lines := parser.Parse()
+
+	// First pass: assign addresses and fill the symbol table
+	if err := parser.Pass1(lines); err != nil {
+		log.Fatalf("Pass 1 failed: %v", err)
+	}
 
 	//this will be optimized out by the compiler
 	if DEBUG {
