@@ -43,7 +43,8 @@ func parseFlags() Config {
 	cfg.OutputAsString = *outputAsStringFlag
 	cfg.DoColor = *doColorFlag
 
-	// Resolve Input File
+	// Get Input File
+	// Flags are optional so figure it out by position if no flag is used
 	if *inputfileFlag != "" {
 		cfg.InputFile = *inputfileFlag
 	} else if len(flag.Args()) > 0 {
@@ -52,7 +53,7 @@ func parseFlags() Config {
 		errorExit("Error: missing input file\n")
 	}
 
-	// Resolve Output File
+	// Get Output File
 	if *outputfileFlag != "" {
 		cfg.OutputFile = *outputfileFlag
 	} else if len(flag.Args()) > 0 {
@@ -65,6 +66,7 @@ func parseFlags() Config {
 	}
 
 	// Return the populated config object back to main
+	// Not really needed since cfg is global
 	return cfg
 }
 
@@ -154,8 +156,21 @@ func main() {
 		log.Fatalf("Error loading tab file %s: %v", cfg.TableFile, err)
 	}
 
-	//do a first pass
-	passer.Pass(TableFile)
+	// Read the source file
+	src, err := os.ReadFile(cfg.InputFile)
+	if err != nil {
+		log.Fatalf("Error reading input file %s: %v", cfg.InputFile, err)
+	}
+
+	// Lex and parse the source into lines
+	lexer := passer.NewLexer(string(src))
+	parser := passer.NewParser(lexer, TableFile)
+	lines := parser.Parse()
+
+	// First pass: assign addresses and fill the symbol table
+	if err := parser.Pass1(lines); err != nil {
+		log.Fatalf("Pass 1 failed: %v", err)
+	}
 
 	//this will be optimized out by the compiler
 	if DEBUG {
@@ -165,6 +180,11 @@ func main() {
 		debugPrint("inputfile:", cfg.InputFile)
 		debugPrint("output as .86s:", cfg.OutputAsString)
 		debugPrint("do color:", cfg.DoColor)
-		TableFile.DebugPrint()
+
+		// Print out the contents of the "lines" DS after Pass1
+		passer.PrintLines(lines, parser.SymbolTable)
+
+		// Print out the contents of the TableFile DS
+		// TableFile.DebugPrint()
 	}
 }
