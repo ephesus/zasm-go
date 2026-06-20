@@ -73,5 +73,6 @@ type Parser struct {
     peekToken    Token
     SymbolTable  SymbolTable
     PC           int // Program Counter
-    Encoding     EncodingTable
+	Encoding         EncodingTable
+	currentLineTokens []Token
 }

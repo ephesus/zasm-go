@@ -12,8 +12,7 @@ starting:
   rla
   rl a
 label1:
-label2:
-  ld (hl),  a
+label2: ld (hl),  a
   add a,b
   add a, 15 ;(3*5) no preprocessing yet
   ret;fuck this

@@ -14,9 +14,10 @@ import (
 
 func NewParser(l *Lexer, encoding EncodingTable) *Parser {
 	p := &Parser{
-		lexer:       l,
-		SymbolTable: make(SymbolTable),
-		Encoding:    encoding,
+		lexer:             l,
+		SymbolTable:       make(SymbolTable),
+		Encoding:          encoding,
+		currentLineTokens: []Token{},
 	}
 
 	// Read two tokens, so currentToken and peekToken are both set
@@ -27,6 +28,7 @@ func NewParser(l *Lexer, encoding EncodingTable) *Parser {
 }
 
 func (p *Parser) nextToken() {
+	p.currentLineTokens = append(p.currentLineTokens, p.currentToken)
 	p.currentToken = p.peekToken
 	p.peekToken = p.lexer.NextToken()
 }
@@ -48,6 +50,7 @@ func (p *Parser) Parse() []Line {
 //parseLine parses one line
 func (p *Parser) parseLine() *Line {
 	line := &Line{}
+	p.currentLineTokens = nil
 
 	// Skip initial newlines
 	p.skipNewlines()
@@ -68,6 +71,7 @@ func (p *Parser) parseLine() *Line {
 			p.nextToken() // consume equal
 			line.Value = p.parseExpression()
 			p.skipUntilNewline()
+			line.Tokens = p.currentLineTokens
 			return line
 		}
 	}
@@ -106,6 +110,7 @@ func (p *Parser) parseLine() *Line {
 	}
 
 	p.skipUntilNewline()
+	line.Tokens = p.currentLineTokens
 	return line
 }
 
@@ -335,11 +340,75 @@ func operandToken(op Operand) string {
 	}
 }
 
+func tokenTypeName(t TokenType) string {
+	switch t {
+	case TokenEOF:
+		return "EOF"
+	case TokenError:
+		return "Err"
+	case TokenIdentifier:
+		return "Id"
+	case TokenNumber:
+		return "Num"
+	case TokenString:
+		return "Str"
+	case TokenComma:
+		return "Comma"
+	case TokenPlus:
+		return "+"
+	case TokenMinus:
+		return "-"
+	case TokenStar:
+		return "*"
+	case TokenSlash:
+		return "/"
+	case TokenPercent:
+		return "%"
+	case TokenLParen:
+		return "("
+	case TokenRParen:
+		return ")"
+	case TokenColon:
+		return "Colon"
+	case TokenSemicolon:
+		return ";"
+	case TokenHash:
+		return "#"
+	case TokenDot:
+		return "."
+	case TokenEqual:
+		return "="
+	case TokenNewline:
+		return "NL"
+	case TokenLeftShift:
+		return "<<"
+	case TokenRightShift:
+		return ">>"
+	default:
+		return "?"
+	}
+}
+
+func formatTokens(ts []Token) string {
+	var b strings.Builder
+	for i, t := range ts {
+		if i > 0 {
+			b.WriteByte(' ')
+		}
+		b.WriteString(tokenTypeName(t.Type))
+		b.WriteByte('(')
+		b.WriteString(t.Value)
+		b.WriteByte(')')
+	}
+	return b.String()
+}
+
 // PrintLines prints the results of Pass1: line index, address, size, label,
 // mnemonic+operands, and directive/assignment info.
 func PrintLines(lines []Line, symTable SymbolTable) {
 	fmt.Println("\nresults of Pass1:")
-	fmt.Printf("%-4s %-8s %-4s  %-16s %s\n", "Lnum", "Address", "Size", "Label", "Instruction")
+	fmt.Printf("%-4s %-8s %-4s  %-16s %-10s %-20s %-10s %-12s %-10s %s\n",
+		"Lnum", "Address", "Size", "Label", "Mnemonic", "Operands", "Directive", "Assignment", "Value", "Tokens")
 	for i, line := range lines {
 		addr := fmt.Sprintf("$%04X", line.Address)
 		label := ""
@@ -347,27 +416,19 @@ func PrintLines(lines []Line, symTable SymbolTable) {
 			label = line.Label + ":"
 		}
 
-		var inst string
-		switch {
-		case line.Mnemonic != "":
-			ops := make([]string, len(line.Operands))
-			for j, op := range line.Operands {
-				ops[j] = op.Value
-			}
-			inst = line.Mnemonic
-			if len(ops) > 0 {
-				inst += " " + strings.Join(ops, ", ")
-			}
-		case line.Directive != "":
-			inst = "." + line.Directive
-			if line.Value != "" {
-				inst += " " + line.Value
-			}
-		case line.Assignment != "":
-			inst = line.Assignment + " = " + line.Value
+		ops := make([]string, len(line.Operands))
+		for j, op := range line.Operands {
+			ops[j] = op.Value
 		}
 
-		fmt.Printf("%-4d %-8s %-4d  %-16s %s\n", i, addr, line.Size, label, inst)
+		fmt.Printf("%-4d %-8s %-4d  %-16s %-10s %-20s %-10s %-12s %-10s %s\n",
+			i, addr, line.Size, label,
+			line.Mnemonic,
+			strings.Join(ops, ", "),
+			line.Directive,
+			line.Assignment,
+			line.Value,
+			formatTokens(line.Tokens))
 	}
 
 	// Print symbol table

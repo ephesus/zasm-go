@@ -144,13 +144,14 @@ func main() {
 	//all global configuration is stored in the cfg
 	var cfg = parseFlags()
 
-	// Load the encoding table
+	//open TAB file
 	f, err := os.Open(cfg.TableFile)
 	if err != nil {
 		log.Fatalf("Error opening tab file %s: %v", cfg.TableFile, err)
 	}
 	defer f.Close()
 
+	// Load the TAB file
 	TableFile, err := passer.LoadTableFile(f)
 	if err != nil {
 		log.Fatalf("Error loading tab file %s: %v", cfg.TableFile, err)
