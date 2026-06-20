@@ -7,6 +7,7 @@ package passer
 
 import (
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -44,6 +45,7 @@ func (p *Parser) Parse() []Line {
 	return lines
 }
 
+//parseLine parses one line
 func (p *Parser) parseLine() *Line {
 	line := &Line{}
 
@@ -180,37 +182,40 @@ func (p *Parser) skipUntilNewline() {
 func (p *Parser) Pass1(lines []Line) error {
 	p.PC = 0 // origin; overridden by .org / #origin below
 
-	for i, line := range lines {
+	for i := range lines {
+		lines[i].Address = p.PC
+
 		switch {
 		// A label points at the CURRENT address, before any size advance.
-		case line.Label != "":
-			if _, exists := p.SymbolTable[line.Label]; exists {
-				return fmt.Errorf("line %d: duplicate label %q", i, line.Label)
+		case lines[i].Label != "":
+			if _, exists := p.SymbolTable[lines[i].Label]; exists {
+				return fmt.Errorf("line %d: duplicate label %q", i, lines[i].Label)
 			}
-			p.SymbolTable[line.Label] = p.PC
+			p.SymbolTable[lines[i].Label] = p.PC
 
 		// An assignment binds a name to a value; it does NOT advance PC.
-		case line.Assignment != "":
-			v, err := p.evalValue(line.Value)
+		case lines[i].Assignment != "":
+			v, err := p.evalValue(lines[i].Value)
 			if err != nil {
 				return fmt.Errorf("line %d: %w", i, err)
 			}
-			p.SymbolTable[line.Assignment] = v
+			p.SymbolTable[lines[i].Assignment] = v
 
 		// Directives may set or advance PC (.org, .db, .ds, ...).
-		case line.Directive != "":
-			if err := p.applyDirective(line); err != nil {
+		case lines[i].Directive != "":
+			if err := p.applyDirective(lines[i]); err != nil {
 				return fmt.Errorf("line %d: %w", i, err)
 			}
 		}
 
 		// A mnemonic can share a line with a label, so size it independently
 		// of the switch above, after the label has been recorded.
-		if line.Mnemonic != "" {
-			size, err := p.sizeOf(line)
+		if lines[i].Mnemonic != "" {
+			size, err := p.sizeOf(lines[i])
 			if err != nil {
 				return fmt.Errorf("line %d: %w", i, err)
 			}
+			lines[i].Size = size
 			p.PC += size
 		}
 	}
@@ -293,7 +298,7 @@ var registerOrCondition = map[string]bool{
 	// 16-bit pairs
 	"AF": true, "BC": true, "DE": true, "HL": true, "SP": true, "IX": true, "IY": true,
 	"IXH": true, "IXL": true, "IYH": true, "IYL": true,
-	// condition codes ("C" already above doubles as carry)
+	// condition codes ("C" above doubles as carry)
 	"NZ": true, "Z": true, "NC": true, "PO": true, "PE": true, "P": true, "M": true,
 }
 
@@ -327,5 +332,55 @@ func operandToken(op Operand) string {
 		}
 		// A bare symbol/label used as an operand is an address: "*".
 		return "*"
+	}
+}
+
+// PrintLines prints the results of Pass1: line index, address, size, label,
+// mnemonic+operands, and directive/assignment info.
+func PrintLines(lines []Line, symTable SymbolTable) {
+	fmt.Println("\nresults of Pass1:")
+	fmt.Printf("%-4s %-8s %-4s  %-16s %s\n", "Lnum", "Address", "Size", "Label", "Instruction")
+	for i, line := range lines {
+		addr := fmt.Sprintf("$%04X", line.Address)
+		label := ""
+		if line.Label != "" {
+			label = line.Label + ":"
+		}
+
+		var inst string
+		switch {
+		case line.Mnemonic != "":
+			ops := make([]string, len(line.Operands))
+			for j, op := range line.Operands {
+				ops[j] = op.Value
+			}
+			inst = line.Mnemonic
+			if len(ops) > 0 {
+				inst += " " + strings.Join(ops, ", ")
+			}
+		case line.Directive != "":
+			inst = "." + line.Directive
+			if line.Value != "" {
+				inst += " " + line.Value
+			}
+		case line.Assignment != "":
+			inst = line.Assignment + " = " + line.Value
+		}
+
+		fmt.Printf("%-4d %-8s %-4d  %-16s %s\n", i, addr, line.Size, label, inst)
+	}
+
+	// Print symbol table
+	fmt.Println("\nSymbol table:")
+	if len(symTable) == 0 {
+		fmt.Println("  (empty)")
+	}
+	symbols := make([]string, 0, len(symTable))
+	for sym := range symTable {
+		symbols = append(symbols, sym)
+	}
+	sort.Strings(symbols)
+	for _, sym := range symbols {
+		fmt.Printf("  %-16s = $%04X (%d)\n", sym, symTable[sym], symTable[sym])
 	}
 }

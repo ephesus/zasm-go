@@ -54,13 +54,15 @@ type Operand struct {
 
 //Line will only have a subset of these fields set, ex. a label will only have Label and Assignment
 type Line struct {
-    Label      string
-    Mnemonic   string
-    Operands   []Operand
-    Directive  string
-    Assignment string
-    Value      string // for assignment or simple directive args
-    Tokens     []Token // optionally keep tokens for debugging
+	Label      string
+	Mnemonic   string
+	Operands   []Operand
+	Directive  string
+	Assignment string
+	Value      string // for assignment or simple directive args
+	Address    int    // PC assigned during Pass1
+	Size       int    // instruction size from encoding table
+	Tokens     []Token // optionally keep tokens for debugging
 }
 
 type SymbolTable map[string]int //z80 is only 16 bit words
