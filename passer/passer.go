@@ -77,6 +77,14 @@ func (p *Parser) parseLine() *Line {
 			p.skipUntilNewline()
 			line.Tokens = p.currentLineTokens
 			return line
+		} else if p.peekToken.Type == TokenIdentifier && strings.ToLower(p.peekToken.Value) == "equ" {
+			line.Assignment = p.currentToken.Value
+			p.nextToken() // consume identifier
+			p.nextToken() // consume "equ"
+			line.Value = p.parseExpression()
+			p.skipUntilNewline()
+			line.Tokens = p.currentLineTokens
+			return line
 		}
 	}
 
