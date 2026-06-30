@@ -1,5 +1,7 @@
 package passer
 
+import "strings"
+
 type TokenType int
 
 const (
@@ -85,6 +87,40 @@ type Line struct {
 	Tokens     []Token // optionally keep tokens for debugging
 	Filename   string
 	LineNum    int
+}
+
+func (l Line) String() string {
+	var b strings.Builder
+	if l.Label != "" {
+		b.WriteString(l.Label)
+		b.WriteString(": ")
+	}
+	if l.Mnemonic != "" {
+		b.WriteString(l.Mnemonic)
+		b.WriteByte(' ')
+	}
+	if len(l.Operands) > 0 {
+		for i, op := range l.Operands {
+			if i > 0 {
+				b.WriteString(", ")
+			}
+			b.WriteString(op.Value)
+		}
+		b.WriteByte(' ')
+	}
+	if l.Directive != "" {
+		b.WriteString(".(")
+		b.WriteString(l.Directive)
+		b.WriteString(") ")
+	}
+	if l.Assignment != "" {
+		b.WriteString(l.Assignment)
+		b.WriteString(" = ")
+	}
+	if l.Value != "" {
+		b.WriteString(l.Value)
+	}
+	return strings.TrimSpace(b.String())
 }
 
 type SymbolTable map[string]int //z80 is only 16 bit words

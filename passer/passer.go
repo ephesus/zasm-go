@@ -205,7 +205,7 @@ func (p *Parser) Pass1(lines []Line) error {
 		// A label points at the CURRENT address, before any size advance.
 		case lines[i].Label != "":
 			if _, exists := p.SymbolTable[lines[i].Label]; exists {
-				return fmt.Errorf("%s: duplicate label %q", loc, lines[i].Label)
+				return fmt.Errorf("%s: duplicate label %q\n    line: %s", loc, lines[i].Label, lines[i].String())
 			}
 			p.SymbolTable[lines[i].Label] = p.PC
 
@@ -213,14 +213,14 @@ func (p *Parser) Pass1(lines []Line) error {
 		case lines[i].Assignment != "":
 			v, err := p.evalValue(lines[i].Value)
 			if err != nil {
-				return fmt.Errorf("%s: %w", loc, err)
+				return fmt.Errorf("%s: %w\n    line: %s", loc, err, lines[i].String())
 			}
 			p.SymbolTable[lines[i].Assignment] = v
 
 		// Directives may set or advance PC (.org, .db, .ds, ...).
 		case lines[i].Directive != "":
 			if err := p.applyDirective(lines[i]); err != nil {
-				return fmt.Errorf("%s: %w", loc, err)
+				return fmt.Errorf("%s: %w\n    line: %s", loc, err, lines[i].String())
 			}
 		}
 
@@ -229,7 +229,7 @@ func (p *Parser) Pass1(lines []Line) error {
 		if lines[i].Mnemonic != "" {
 			size, err := p.sizeOf(lines[i])
 			if err != nil {
-				return fmt.Errorf("%s: %w", loc, err)
+				return fmt.Errorf("%s: %w\n    line: %s", loc, err, lines[i].String())
 			}
 			lines[i].Size = size
 			p.PC += size
@@ -260,6 +260,7 @@ func (p *Parser) sizeOf(line Line) (int, error) {
 			return e.Size, nil
 		}
 	}
+	fmt.Println(line)
 	return 0, fmt.Errorf("no encoding for %q with operands %q", line.Mnemonic, pattern)
 }
 
@@ -297,7 +298,7 @@ func (p *Parser) evalValue(s string) (int, error) {
 
 // applyDirective handles the subset of directives that affect addressing in
 // Pass 1. The parser collapses both `.name` and `#name` into Line.Directive
-// and drops any `=`. Unrecognized directives produce an error.
+// and drops any `=`
 func (p *Parser) applyDirective(line Line) error {
 	switch strings.ToLower(line.Directive) {
 	case "org":
@@ -339,6 +340,10 @@ func (p *Parser) applyDirective(line Line) error {
 			}
 			p.PC += v
 		}
+	//this "plugin" format is left over from asmStudio (old Ti-calculator assembler)
+	case "plugin":
+	//.plugin asm86
+		
 	default:
 		return fmt.Errorf("unknown directive %q", line.Directive)
 	}

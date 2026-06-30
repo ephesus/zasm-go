@@ -190,7 +190,7 @@ func (l *Lexer) tryConsumeInclude() bool {
 		start := idx
 		for idx < len(l.input) {
 			ch := l.input[idx]
-			if ch == ' ' || ch == '\t' || ch == '\n' || ch == ';' {
+			if ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r' || ch == ';' {
 				break
 			}
 			idx++
@@ -205,8 +205,8 @@ func (l *Lexer) tryConsumeInclude() bool {
 		return false
 	}
 
-	// Skip trailing whitespace
-	for idx < len(l.input) && (l.input[idx] == ' ' || l.input[idx] == '\t') {
+	// Skip trailing whitespace (including \r for CRLF)
+	for idx < len(l.input) && (l.input[idx] == ' ' || l.input[idx] == '\t' || l.input[idx] == '\r') {
 		idx++
 	}
 
@@ -217,6 +217,10 @@ func (l *Lexer) tryConsumeInclude() bool {
 		}
 	}
 
+	// Skip \r before checking for \n (CRLF support)
+	for idx < len(l.input) && l.input[idx] == '\r' {
+		idx++
+	}
 	// Must be at newline or EOF
 	if idx < len(l.input) && l.input[idx] != '\n' {
 		return false
