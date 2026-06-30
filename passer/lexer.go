@@ -134,7 +134,8 @@ func (l *Lexer) NextToken() Token {
 }
 
 // tryConsumeInclude checks if the current position starts an include directive
-// (#include "file" / .include "file" / #include <file> / .include <file>),
+// (#include "file" / .include "file" / #include <file> / .include <file>
+//  / #include file / .include file),
 // and if so, loads the file and pushes a lexer frame. Returns true if the
 // include was consumed, false otherwise. On file-read errors it sets l.err.
 func (l *Lexer) tryConsumeInclude() bool {
@@ -159,7 +160,7 @@ func (l *Lexer) tryConsumeInclude() bool {
 		return false
 	}
 
-	// Read filename: "..." or <...>
+	// Read filename: "..." or <...> or bare (unquoted)
 	var filename string
 	switch l.input[idx] {
 	case '"':
@@ -185,7 +186,19 @@ func (l *Lexer) tryConsumeInclude() bool {
 		filename = l.input[start:idx]
 		idx++ // skip closing >
 	default:
-		return false
+		// Bare filename: read until whitespace, newline, semicolon, or EOF
+		start := idx
+		for idx < len(l.input) {
+			ch := l.input[idx]
+			if ch == ' ' || ch == '\t' || ch == '\n' || ch == ';' {
+				break
+			}
+			idx++
+		}
+		if start == idx {
+			return false
+		}
+		filename = l.input[start:idx]
 	}
 
 	if filename == "" {
