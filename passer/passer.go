@@ -429,7 +429,7 @@ func formatTokens(ts []Token) string {
 		}
 		b.WriteString(tokenTypeName(t.Type))
 		b.WriteByte('(')
-		b.WriteString(t.Value)
+		b.WriteString(strings.ReplaceAll(t.Value, "\n", `\n`)) //don't print the literal newline because it messes up the table
 		b.WriteByte(')')
 	}
 	return b.String()
