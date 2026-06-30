@@ -94,9 +94,8 @@ func (p *Parser) parseLine() *Line {
 		if p.currentToken.Type == TokenIdentifier {
 			line.Directive = p.currentToken.Value
 			p.nextToken()
-			// Parse directive args if any
 			if p.currentToken.Type != TokenNewline && p.currentToken.Type != TokenEOF {
-				line.Value = p.parseExpression()
+				line.Operands = p.parseOperands()
 			}
 		}
 	} else if p.currentToken.Type == TokenHash {
@@ -104,12 +103,11 @@ func (p *Parser) parseLine() *Line {
 		if p.currentToken.Type == TokenIdentifier {
 			line.Directive = p.currentToken.Value
 			p.nextToken()
-			// Handle #directive = value or #directive value
 			if p.currentToken.Type == TokenEqual {
 				p.nextToken()
 			}
 			if p.currentToken.Type != TokenNewline && p.currentToken.Type != TokenEOF {
-				line.Value = p.parseExpression()
+				line.Operands = p.parseOperands()
 			}
 		}
 	}
@@ -299,27 +297,50 @@ func (p *Parser) evalValue(s string) (int, error) {
 
 // applyDirective handles the subset of directives that affect addressing in
 // Pass 1. The parser collapses both `.name` and `#name` into Line.Directive
-// and drops any `=`, so a `#name = value` form (e.g. "#origin = _textShadow")
-// is indistinguishable from a defining directive — we treat any unrecognized
-// directive that carries a value as a symbol definition.
+// and drops any `=`. Unrecognized directives produce an error.
 func (p *Parser) applyDirective(line Line) error {
 	switch strings.ToLower(line.Directive) {
 	case "org":
-		v, err := p.evalValue(line.Value)
+		if len(line.Operands) == 0 {
+			return fmt.Errorf(".org requires a value")
+		}
+		v, err := p.evalValue(line.Operands[0].Value)
 		if err != nil {
 			return err
 		}
 		p.PC = v
-	// case "db", "dw", "ds": advance PC by the data size (TODO)
-	default:
-		// `#name = value` defines a symbol; valueless directives are no-ops.
-		if line.Value != "" {
-			v, err := p.evalValue(line.Value)
+	case "db":
+		for _, op := range line.Operands {
+			v, err := p.evalValue(op.Value)
 			if err != nil {
 				return err
 			}
-			p.SymbolTable[line.Directive] = v
+			if v < -128 || v > 255 {
+				return fmt.Errorf("byte value %d out of range", v)
+			}
+			p.PC++
 		}
+	case "dw":
+		for _, op := range line.Operands {
+			v, err := p.evalValue(op.Value)
+			if err != nil {
+				return err
+			}
+			if v < -32768 || v > 65535 {
+				return fmt.Errorf("word value %d out of range", v)
+			}
+			p.PC += 2
+		}
+	case "ds":
+		if len(line.Operands) > 0 {
+			v, err := p.evalValue(line.Operands[0].Value)
+			if err != nil {
+				return err
+			}
+			p.PC += v
+		}
+	default:
+		return fmt.Errorf("unknown directive %q", line.Directive)
 	}
 	return nil
 }

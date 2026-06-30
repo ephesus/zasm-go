@@ -182,7 +182,7 @@ func main() {
 		fmt.Println("----------------")
 		debugPrint("outputfile:", cfg.OutputFile)
 		debugPrint("inputfile:", cfg.InputFile)
-		debugPrint("output as .86s:", cfg.OutputAsString)
+		debugPrint("output .86s:", cfg.OutputAsString)
 		debugPrint("do color:", cfg.DoColor)
 
 		// Print out the contents of the "lines" DS after Pass1
