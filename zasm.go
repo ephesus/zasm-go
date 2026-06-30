@@ -18,6 +18,42 @@ const DEBUG = true
 
 var p *message.Printer = message.NewPrinter(language.English)
 
+const (
+	colorReset  = "\033[0m"
+	colorBlue   = "\033[38;5;75m"
+	colorRed    = "\033[31m"
+	colorGray   = "\033[38;5;243m"
+	colorOrange = "\033[38;5;215m"
+	colorPurple = "\033[38;5;141m"
+	colorWhite  = "\033[38;5;255m"
+	colorGreen  = "\033[38;5;150m"
+	bold        = "\033[1m"
+	dim         = "\033[2m"
+)
+
+func showHelp() {
+	p.Fprintf(os.Stderr, "Usage: go run main.go [options] srcfile outfile\n\n")
+	p.Fprintf(os.Stderr, "Available Options:\n")
+	flag.PrintDefaults()
+	p.Fprintf(os.Stderr, "\nExample:\n")
+	p.Fprintf(os.Stderr, "  go run zasm-go.go test.asm output.86p\n")
+	p.Fprintf(os.Stderr, "  zasm-go test.asm output.86p\n")
+	p.Fprintf(os.Stderr, "=========================================\n")
+}
+
+func errorExit(msg string) {
+	var formatStr string
+	fmt.Println(cfg.DoColor)
+	if cfg.DoColor == true {
+		formatStr = "❌ %s%s%s"
+	} else {
+		formatStr = "%s"
+	}
+
+	p.Fprintf(os.Stderr, formatStr, colorRed, msg, colorReset)
+	os.Exit(1)
+}
+
 // Config is the global configuration settings
 type Config struct {
 	InputFile      string
@@ -69,42 +105,6 @@ func parseFlags() Config {
 	// Return the populated config object back to main
 	// Not really needed since cfg is global
 	return cfg
-}
-
-const (
-	colorReset  = "\033[0m"
-	colorBlue   = "\033[38;5;75m"
-	colorRed    = "\033[31m"
-	colorGray   = "\033[38;5;243m"
-	colorOrange = "\033[38;5;215m"
-	colorPurple = "\033[38;5;141m"
-	colorWhite  = "\033[38;5;255m"
-	colorGreen  = "\033[38;5;150m"
-	bold        = "\033[1m"
-	dim         = "\033[2m"
-)
-
-func showHelp() {
-	p.Fprintf(os.Stderr, "Usage: go run main.go [options] srcfile outfile\n\n")
-	p.Fprintf(os.Stderr, "Available Options:\n")
-	flag.PrintDefaults()
-	p.Fprintf(os.Stderr, "\nExample:\n")
-	p.Fprintf(os.Stderr, "  go run zasm-go.go test.asm output.86p\n")
-	p.Fprintf(os.Stderr, "  zasm-go test.asm output.86p\n")
-	p.Fprintf(os.Stderr, "=========================================\n")
-}
-
-func errorExit(msg string) {
-	var formatStr string
-	fmt.Println(cfg.DoColor)
-	if cfg.DoColor == true {
-		formatStr = "❌ %s%s%s"
-	} else {
-		formatStr = "%s"
-	}
-
-	p.Fprintf(os.Stderr, formatStr, colorRed, msg, colorReset)
-	os.Exit(1)
 }
 
 // debugPrint simply prints out log messages for debugging (sometimes with color)
