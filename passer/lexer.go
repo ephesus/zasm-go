@@ -317,6 +317,9 @@ func (l *Lexer) readNumber() string {
 		// This is a bit loose, it will catch 0x123 and also 123
 		l.readChar()
 	}
+	if l.ch == 'h' || l.ch == 'H' {
+		l.readChar()
+	}
 	return l.input[position:l.position]
 }
 

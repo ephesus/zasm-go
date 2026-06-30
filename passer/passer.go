@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"unicode"
 )
 
 func NewParser(l *Lexer, encoding EncodingTable) *Parser {
@@ -170,10 +171,13 @@ func (p *Parser) parseOperand() Operand {
 }
 
 func (p *Parser) parseExpression() string {
-	// Very simple expression parser for now: just take the value
-	val := p.currentToken.Value
-	p.nextToken()
-	return val
+	var parts []string
+	for p.currentToken.Type != TokenNewline && p.currentToken.Type != TokenEOF &&
+		p.currentToken.Type != TokenComma && p.currentToken.Type != TokenRParen {
+		parts = append(parts, p.currentToken.Value)
+		p.nextToken()
+	}
+	return strings.Join(parts, " ")
 }
 
 func (p *Parser) skipNewlines() {
@@ -210,16 +214,18 @@ func (p *Parser) Pass1(lines []Line) error {
 			p.SymbolTable[lines[i].Label] = p.PC
 
 		// An assignment binds a name to a value; it does NOT advance PC.
+		// If the value references a forward label, defer resolution to Pass2.
 		case lines[i].Assignment != "":
-			v, err := p.evalValue(lines[i].Value)
+			v, err := p.evalExpr(lines[i].Value, lines[i].Address)
 			if err != nil {
-				return fmt.Errorf("%s: %w\n    line: %s", loc, err, lines[i].String())
+				p.deferredAssignments = append(p.deferredAssignments, i)
+			} else {
+				p.SymbolTable[lines[i].Assignment] = v
 			}
-			p.SymbolTable[lines[i].Assignment] = v
 
 		// Directives may set or advance PC (.org, .db, .ds, ...).
 		case lines[i].Directive != "":
-			if err := p.applyDirective(lines[i]); err != nil {
+			if err := p.applyDirective(&lines[i]); err != nil {
 				return fmt.Errorf("%s: %w\n    line: %s", loc, err, lines[i].String())
 			}
 		}
@@ -233,6 +239,11 @@ func (p *Parser) Pass1(lines []Line) error {
 			}
 			lines[i].Size = size
 			p.PC += size
+
+			// Try to resolve instruction operand values; mark forward refs as unresolved.
+			for j := range lines[i].Operands {
+				p.resolveOperand(&lines[i].Operands[j], lines[i].Address)
+			}
 		}
 	}
 	return nil
@@ -288,21 +299,248 @@ func matchOperands(tabOperands string, parsed []Operand) bool {
 	return true
 }
 
-// evalValue resolves a directive/assignment value: an existing symbol, a
-// $-prefixed hex literal, or a decimal/0x literal. Expression support (math,
-// shifts) can be layered on later.
-func (p *Parser) evalValue(s string) (int, error) {
+type exprTokenType int
+
+const (
+	exprNumber exprTokenType = iota
+	exprIdent
+	exprPlus
+	exprMinus
+	exprStar
+	exprSlash
+	exprLParen
+	exprRParen
+	exprDollar
+)
+
+type exprToken struct {
+	typ exprTokenType
+	val string
+}
+
+// tokenizeExpr breaks an expression string into tokens for the evaluator.
+func tokenizeExpr(s string) ([]exprToken, error) {
+	var toks []exprToken
+	runes := []rune(s)
+	i := 0
+	for i < len(runes) {
+		ch := runes[i]
+		if ch == ' ' || ch == '\t' {
+			i++
+			continue
+		}
+		switch {
+		case ch == '+':
+			toks = append(toks, exprToken{typ: exprPlus, val: "+"})
+			i++
+		case ch == '-':
+			toks = append(toks, exprToken{typ: exprMinus, val: "-"})
+			i++
+		case ch == '*':
+			toks = append(toks, exprToken{typ: exprStar, val: "*"})
+			i++
+		case ch == '/':
+			toks = append(toks, exprToken{typ: exprSlash, val: "/"})
+			i++
+		case ch == '(':
+			toks = append(toks, exprToken{typ: exprLParen, val: "("})
+			i++
+		case ch == ')':
+			toks = append(toks, exprToken{typ: exprRParen, val: ")"})
+			i++
+		case ch == '$':
+			// $ as hex prefix: consume following hex digits as a number
+			if i+1 < len(runes) && isHexRune(runes[i+1]) {
+				i++ // skip $
+				start := i
+				for i < len(runes) && isHexRune(runes[i]) {
+					i++
+				}
+				toks = append(toks, exprToken{typ: exprNumber, val: "$" + string(runes[start:i])})
+			} else {
+				toks = append(toks, exprToken{typ: exprDollar, val: "$"})
+				i++
+			}
+		case ch == '_' || unicode.IsLetter(ch):
+			start := i
+			for i < len(runes) && (runes[i] == '_' || unicode.IsLetter(runes[i]) || unicode.IsDigit(runes[i])) {
+				i++
+			}
+			toks = append(toks, exprToken{typ: exprIdent, val: string(runes[start:i])})
+		case unicode.IsDigit(ch):
+			start := i
+			// hex prefix 0x or 0X
+			if ch == '0' && i+1 < len(runes) && (runes[i+1] == 'x' || runes[i+1] == 'X') {
+				i += 2
+				for i < len(runes) && isHexRune(runes[i]) {
+					i++
+				}
+			} else {
+				for i < len(runes) && isHexRune(runes[i]) {
+					i++
+				}
+				if i < len(runes) && (runes[i] == 'h' || runes[i] == 'H') {
+					i++
+				}
+			}
+			toks = append(toks, exprToken{typ: exprNumber, val: string(runes[start:i])})
+		default:
+			return nil, fmt.Errorf("unexpected character %q in expression", ch)
+		}
+	}
+	return toks, nil
+}
+
+func isHexRune(r rune) bool {
+	return unicode.IsDigit(r) || (r >= 'a' && r <= 'f') || (r >= 'A' && r <= 'F')
+}
+
+// evalExpr evaluates a Z80 expression string (supports +, -, parens, $, symbols, numbers).
+// addr is the current line's address, used for resolving $.
+func (p *Parser) evalExpr(s string, addr int) (int, error) {
 	if s == "" {
 		return 0, nil
 	}
-	if v, ok := p.SymbolTable[s]; ok {
-		return v, nil
+	toks, err := tokenizeExpr(s)
+	if err != nil {
+		return 0, err
 	}
+	if len(toks) == 0 {
+		return 0, fmt.Errorf("empty expression")
+	}
+	pos := 0
+	result, err := p.parseAddExpr(toks, &pos, addr)
+	if err != nil {
+		return 0, err
+	}
+	if pos < len(toks) {
+		return 0, fmt.Errorf("unexpected token %q after expression", toks[pos].val)
+	}
+	return result, nil
+}
+
+// parseAddExpr handles + and - (lowest precedence).
+func (p *Parser) parseAddExpr(toks []exprToken, pos *int, addr int) (int, error) {
+	left, err := p.parseMulExpr(toks, pos, addr)
+	if err != nil {
+		return 0, err
+	}
+	for *pos < len(toks) {
+		switch toks[*pos].typ {
+		case exprPlus:
+			*pos++
+			right, err := p.parseMulExpr(toks, pos, addr)
+			if err != nil {
+				return 0, err
+			}
+			left += right
+		case exprMinus:
+			*pos++
+			right, err := p.parseMulExpr(toks, pos, addr)
+			if err != nil {
+				return 0, err
+			}
+			left -= right
+		default:
+			return left, nil
+		}
+	}
+	return left, nil
+}
+
+// parseMulExpr handles * and / (medium precedence).
+func (p *Parser) parseMulExpr(toks []exprToken, pos *int, addr int) (int, error) {
+	left, err := p.parseUnary(toks, pos, addr)
+	if err != nil {
+		return 0, err
+	}
+	for *pos < len(toks) {
+		switch toks[*pos].typ {
+		case exprStar:
+			*pos++
+			right, err := p.parseUnary(toks, pos, addr)
+			if err != nil {
+				return 0, err
+			}
+			left *= right
+		case exprSlash:
+			*pos++
+			right, err := p.parseUnary(toks, pos, addr)
+			if err != nil {
+				return 0, err
+			}
+			if right == 0 {
+				return 0, fmt.Errorf("division by zero")
+			}
+			left /= right
+		default:
+			return left, nil
+		}
+	}
+	return left, nil
+}
+
+// parseUnary handles unary + and -.
+func (p *Parser) parseUnary(toks []exprToken, pos *int, addr int) (int, error) {
+	if *pos >= len(toks) {
+		return 0, fmt.Errorf("unexpected end of expression")
+	}
+	switch toks[*pos].typ {
+	case exprPlus:
+		*pos++
+		return p.parseUnary(toks, pos, addr)
+	case exprMinus:
+		*pos++
+		val, err := p.parseUnary(toks, pos, addr)
+		if err != nil {
+			return 0, err
+		}
+		return -val, nil
+	default:
+		return p.parsePrimary(toks, pos, addr)
+	}
+}
+
+// parsePrimary handles numbers, identifiers, $, and parenthesized expressions.
+func (p *Parser) parsePrimary(toks []exprToken, pos *int, addr int) (int, error) {
+	if *pos >= len(toks) {
+		return 0, fmt.Errorf("unexpected end of expression")
+	}
+	tok := toks[*pos]
+	*pos++
+
+	switch tok.typ {
+	case exprNumber:
+		return parseNumber(tok.val)
+	case exprIdent:
+		if v, ok := p.SymbolTable[tok.val]; ok {
+			return v, nil
+		}
+		return 0, fmt.Errorf("undefined symbol %q", tok.val)
+	case exprDollar:
+		return addr, nil
+	case exprLParen:
+		val, err := p.parseAddExpr(toks, pos, addr)
+		if err != nil {
+			return 0, err
+		}
+		if *pos >= len(toks) || toks[*pos].typ != exprRParen {
+			return 0, fmt.Errorf("missing closing parenthesis")
+		}
+		*pos++
+		return val, nil
+	default:
+		return 0, fmt.Errorf("unexpected token %q in expression", tok.val)
+	}
+}
+
+// parseNumber converts a numeric token string to an int.
+// Supports: $hex, 0xhex, trailing h/H, decimal.
+func parseNumber(s string) (int, error) {
 	if strings.HasPrefix(s, "$") {
 		v, err := strconv.ParseInt(s[1:], 16, 32)
 		return int(v), err
 	}
-	// Z80 convention: trailing "h" / "H" indicates hex (e.g. "0C0F9h")
 	if len(s) > 1 && (s[len(s)-1] == 'h' || s[len(s)-1] == 'H') {
 		v, err := strconv.ParseInt(s[:len(s)-1], 16, 32)
 		if err == nil {
@@ -313,7 +551,7 @@ func (p *Parser) evalValue(s string) (int, error) {
 	if err != nil {
 		v, err2 := strconv.ParseInt(s, 16, 32) // fallback: bare hex like "0C0F9"
 		if err2 != nil {
-			return 0, fmt.Errorf("cannot resolve value %q", s)
+			return 0, fmt.Errorf("cannot parse number %q", s)
 		}
 		return int(v), nil
 	}
@@ -323,42 +561,48 @@ func (p *Parser) evalValue(s string) (int, error) {
 // applyDirective handles the subset of directives that affect addressing in
 // Pass 1. The parser collapses both `.name` and `#name` into Line.Directive
 // and drops any `=`
-func (p *Parser) applyDirective(line Line) error {
+func (p *Parser) applyDirective(line *Line) error {
 	switch strings.ToLower(line.Directive) {
 	case "org":
 		if len(line.Operands) == 0 {
 			return fmt.Errorf(".org requires a value")
 		}
-		v, err := p.evalValue(line.Operands[0].Value)
+		v, err := p.evalExpr(line.Operands[0].Value, line.Address)
 		if err != nil {
 			return err
 		}
+		line.Operands[0].Resolved = true
+		line.Operands[0].IntValue = v
 		p.PC = v
 	case "db":
-		for _, op := range line.Operands {
-			v, err := p.evalValue(op.Value)
-			if err != nil {
-				return err
-			}
-			if v < -128 || v > 255 {
-				return fmt.Errorf("byte value %d out of range", v)
+		for i := range line.Operands {
+			op := &line.Operands[i]
+			v, err := p.evalExpr(op.Value, line.Address)
+			if err == nil {
+				op.Resolved = true
+				op.IntValue = v
+				if v < -128 || v > 255 {
+					return fmt.Errorf("byte value %d out of range", v)
+				}
 			}
 			p.PC++
 		}
 	case "dw":
-		for _, op := range line.Operands {
-			v, err := p.evalValue(op.Value)
-			if err != nil {
-				return err
-			}
-			if v < -32768 || v > 65535 {
-				return fmt.Errorf("word value %d out of range", v)
+		for i := range line.Operands {
+			op := &line.Operands[i]
+			v, err := p.evalExpr(op.Value, line.Address)
+			if err == nil {
+				op.Resolved = true
+				op.IntValue = v
+				if v < -32768 || v > 65535 {
+					return fmt.Errorf("word value %d out of range", v)
+				}
 			}
 			p.PC += 2
 		}
 	case "ds":
 		if len(line.Operands) > 0 {
-			v, err := p.evalValue(line.Operands[0].Value)
+			v, err := p.evalExpr(line.Operands[0].Value, line.Address)
 			if err != nil {
 				return err
 			}
@@ -370,6 +614,95 @@ func (p *Parser) applyDirective(line Line) error {
 		
 	default:
 		return fmt.Errorf("unknown directive %q", line.Directive)
+	}
+	return nil
+}
+
+// resolveOperand tries to evaluate an operand's value expression and sets the
+// Resolved / IntValue fields. It is a no-op for register operands.
+func (p *Parser) resolveOperand(op *Operand, addr int) {
+	switch op.Type {
+	case OpImmediate:
+		if v, err := p.evalExpr(op.Value, addr); err == nil {
+			op.Resolved = true
+			op.IntValue = v
+		}
+	case OpIdentifier:
+		if !registerOrCondition[strings.ToUpper(op.Value)] {
+			if v, err := p.evalExpr(op.Value, addr); err == nil {
+				op.Resolved = true
+				op.IntValue = v
+			}
+		}
+	case OpMemory:
+		inner := strings.ToUpper(op.Value)
+		if !registerOrCondition[inner] {
+			if v, err := p.evalExpr(op.Value, addr); err == nil {
+				op.Resolved = true
+				op.IntValue = v
+			}
+		}
+	}
+}
+
+// ResolveDeferred re-evaluates any assignments that were deferred in Pass1
+// because they referenced forward labels. All explicit labels are now in the
+// SymbolTable, so these should succeed. Returns an error if any still fail.
+func (p *Parser) ResolveDeferred(lines []Line) error {
+	for _, idx := range p.deferredAssignments {
+		v, err := p.evalExpr(lines[idx].Value, lines[idx].Address)
+		if err != nil {
+			return fmt.Errorf("%s: %w\n    line: %s",
+				p.lineLoc(lines[idx]), err, lines[idx].String())
+		}
+		p.SymbolTable[lines[idx].Assignment] = v
+	}
+	p.deferredAssignments = nil
+	return nil
+}
+
+// Pass2 walks all lines and resolves any remaining unresolved operand values
+// using the now-complete SymbolTable. After Pass2 every operand that can be
+// resolved will have Resolved=true. Binary emission is not yet implemented;
+// this is a placeholder that validates all references resolve.
+func (p *Parser) Pass2(lines []Line) error {
+	for i := range lines {
+		loc := p.lineLoc(lines[i])
+
+		// Resolve instruction operands
+		if lines[i].Mnemonic != "" {
+			for j := range lines[i].Operands {
+				p.resolveOperand(&lines[i].Operands[j], lines[i].Address)
+			}
+		}
+
+		// Resolve directive operands (db, dw)
+		if lines[i].Directive != "" {
+			for j := range lines[i].Operands {
+				if !lines[i].Operands[j].Resolved {
+					p.resolveOperand(&lines[i].Operands[j], lines[i].Address)
+				}
+			}
+		}
+
+		// Check for any still-unresolved operands (should not happen after ResolveDeferred)
+		for _, op := range lines[i].Operands {
+			if op.Resolved {
+				continue
+			}
+			// Registers are expected to be unresolved; only flag non-register identifiers.
+			if op.Type == OpIdentifier && !registerOrCondition[strings.ToUpper(op.Value)] {
+				return fmt.Errorf("%s: unresolved forward reference %q\n    line: %s",
+					loc, op.Value, lines[i].String())
+			}
+			if op.Type == OpMemory {
+				inner := strings.ToUpper(op.Value)
+				if !registerOrCondition[inner] {
+					return fmt.Errorf("%s: unresolved forward reference %q\n    line: %s",
+						loc, op.Value, lines[i].String())
+				}
+			}
+		}
 	}
 	return nil
 }

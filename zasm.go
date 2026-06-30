@@ -176,6 +176,16 @@ func main() {
 		log.Fatalf("Pass 1 failed: %v", err)
 	}
 
+	// Resolve deferred assignments (forward references in label = expr)
+	if err := parser.ResolveDeferred(lines); err != nil {
+		log.Fatalf("Symbol resolution failed: %v", err)
+	}
+
+	// Second pass: resolve all remaining forward references and validate
+	if err := parser.Pass2(lines); err != nil {
+		log.Fatalf("Pass 2 failed: %v", err)
+	}
+
 	//this will be optimized out by the compiler
 	if DEBUG {
 		fmt.Println("Debug INFO:")

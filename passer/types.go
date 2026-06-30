@@ -70,8 +70,10 @@ const (
 )
 
 type Operand struct {
-    Type  OperandType
-    Value string
+    Type     OperandType
+    Value    string
+    Resolved bool // true = IntValue is valid (resolved in Pass1 or Pass2)
+    IntValue int  // resolved value, valid only if Resolved is true
 }
 
 //Line will only have a subset of these fields set, ex. a label will only have Label and Assignment
@@ -133,4 +135,5 @@ type Parser struct {
     PC           int // Program Counter
 	Encoding         EncodingTable
 	currentLineTokens []Token
+	deferredAssignments []int // line indices for assignments that couldn't resolve in Pass1
 }
