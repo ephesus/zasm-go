@@ -14,7 +14,7 @@ starting:
   add a, 15
   ret `
 
-	zlexer := NewLexer(input)
+	zlexer := NewLexer(input, "", "")
 	p := NewParser(zlexer, nil)
 	lines := p.Parse()
 

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 
 	"golang.org/x/text/language"
 	"golang.org/x/text/message"
@@ -16,6 +17,42 @@ import (
 const DEBUG = true
 
 var p *message.Printer = message.NewPrinter(language.English)
+
+const (
+	colorReset  = "\033[0m"
+	colorBlue   = "\033[38;5;75m"
+	colorRed    = "\033[31m"
+	colorGray   = "\033[38;5;243m"
+	colorOrange = "\033[38;5;215m"
+	colorPurple = "\033[38;5;141m"
+	colorWhite  = "\033[38;5;255m"
+	colorGreen  = "\033[38;5;150m"
+	bold        = "\033[1m"
+	dim         = "\033[2m"
+)
+
+func showHelp() {
+	p.Fprintf(os.Stderr, "Usage: go run main.go [options] srcfile outfile\n\n")
+	p.Fprintf(os.Stderr, "Available Options:\n")
+	flag.PrintDefaults()
+	p.Fprintf(os.Stderr, "\nExample:\n")
+	p.Fprintf(os.Stderr, "  go run zasm-go.go test.asm output.86p\n")
+	p.Fprintf(os.Stderr, "  zasm-go test.asm output.86p\n")
+	p.Fprintf(os.Stderr, "=========================================\n")
+}
+
+func errorExit(msg string) {
+	var formatStr string
+	fmt.Println(cfg.DoColor)
+	if cfg.DoColor == true {
+		formatStr = "❌ %s%s%s"
+	} else {
+		formatStr = "%s"
+	}
+
+	p.Fprintf(os.Stderr, formatStr, colorRed, msg, colorReset)
+	os.Exit(1)
+}
 
 // Config is the global configuration settings
 type Config struct {
@@ -70,42 +107,6 @@ func parseFlags() Config {
 	return cfg
 }
 
-const (
-	colorReset  = "\033[0m"
-	colorBlue   = "\033[38;5;75m"
-	colorRed    = "\033[31m"
-	colorGray   = "\033[38;5;243m"
-	colorOrange = "\033[38;5;215m"
-	colorPurple = "\033[38;5;141m"
-	colorWhite  = "\033[38;5;255m"
-	colorGreen  = "\033[38;5;150m"
-	bold        = "\033[1m"
-	dim         = "\033[2m"
-)
-
-func showHelp() {
-	p.Fprintf(os.Stderr, "Usage: go run main.go [options] srcfile outfile\n\n")
-	p.Fprintf(os.Stderr, "Available Options:\n")
-	flag.PrintDefaults()
-	p.Fprintf(os.Stderr, "\nExample:\n")
-	p.Fprintf(os.Stderr, "  go run zasm-go.go test.asm output.86p\n")
-	p.Fprintf(os.Stderr, "  zasm-go test.asm output.86p\n")
-	p.Fprintf(os.Stderr, "=========================================\n")
-}
-
-func errorExit(msg string) {
-	var formatStr string
-	fmt.Println(cfg.DoColor)
-	if cfg.DoColor == true {
-		formatStr = "❌ %s%s%s"
-	} else {
-		formatStr = "%s"
-	}
-
-	p.Fprintf(os.Stderr, formatStr, colorRed, msg, colorReset)
-	os.Exit(1)
-}
-
 // debugPrint simply prints out log messages for debugging (sometimes with color)
 func debugPrint(desc string, message any) {
 	var formatStr string
@@ -141,16 +142,19 @@ func debugPrint(desc string, message any) {
 
 // main() is the entrypoint
 func main() {
+	log.SetFlags(0)
+
 	//all global configuration is stored in the cfg
 	var cfg = parseFlags()
 
-	// Load the encoding table
+	//open TAB file
 	f, err := os.Open(cfg.TableFile)
 	if err != nil {
 		log.Fatalf("Error opening tab file %s: %v", cfg.TableFile, err)
 	}
 	defer f.Close()
 
+	// Load the TAB file
 	TableFile, err := passer.LoadTableFile(f)
 	if err != nil {
 		log.Fatalf("Error loading tab file %s: %v", cfg.TableFile, err)
@@ -163,7 +167,7 @@ func main() {
 	}
 
 	// Lex and parse the source into lines
-	lexer := passer.NewLexer(string(src))
+	lexer := passer.NewLexer(string(src), cfg.InputFile, filepath.Dir(cfg.InputFile))
 	parser := passer.NewParser(lexer, TableFile)
 	lines := parser.Parse()
 
@@ -178,7 +182,7 @@ func main() {
 		fmt.Println("----------------")
 		debugPrint("outputfile:", cfg.OutputFile)
 		debugPrint("inputfile:", cfg.InputFile)
-		debugPrint("output as .86s:", cfg.OutputAsString)
+		debugPrint("output .86s:", cfg.OutputAsString)
 		debugPrint("do color:", cfg.DoColor)
 
 		// Print out the contents of the "lines" DS after Pass1

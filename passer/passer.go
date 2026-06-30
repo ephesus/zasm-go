@@ -14,9 +14,10 @@ import (
 
 func NewParser(l *Lexer, encoding EncodingTable) *Parser {
 	p := &Parser{
-		lexer:       l,
-		SymbolTable: make(SymbolTable),
-		Encoding:    encoding,
+		lexer:             l,
+		SymbolTable:       make(SymbolTable),
+		Encoding:          encoding,
+		currentLineTokens: []Token{},
 	}
 
 	// Read two tokens, so currentToken and peekToken are both set
@@ -27,6 +28,7 @@ func NewParser(l *Lexer, encoding EncodingTable) *Parser {
 }
 
 func (p *Parser) nextToken() {
+	p.currentLineTokens = append(p.currentLineTokens, p.currentToken)
 	p.currentToken = p.peekToken
 	p.peekToken = p.lexer.NextToken()
 }
@@ -48,12 +50,17 @@ func (p *Parser) Parse() []Line {
 //parseLine parses one line
 func (p *Parser) parseLine() *Line {
 	line := &Line{}
+	p.currentLineTokens = nil
 
 	// Skip initial newlines
 	p.skipNewlines()
 	if p.currentToken.Type == TokenEOF {
 		return nil
 	}
+
+	// Capture source location from the first meaningful token
+	line.Filename = p.currentToken.Location.Filename
+	line.LineNum = p.currentToken.Location.Line
 
 	// Handle Label or Assignment
 	// Not using a switch statement because of lines like "mylabel: ld a, b" get complicated
@@ -68,6 +75,15 @@ func (p *Parser) parseLine() *Line {
 			p.nextToken() // consume equal
 			line.Value = p.parseExpression()
 			p.skipUntilNewline()
+			line.Tokens = p.currentLineTokens
+			return line
+		} else if p.peekToken.Type == TokenIdentifier && strings.ToLower(p.peekToken.Value) == "equ" {
+			line.Assignment = p.currentToken.Value
+			p.nextToken() // consume identifier
+			p.nextToken() // consume "equ"
+			line.Value = p.parseExpression()
+			p.skipUntilNewline()
+			line.Tokens = p.currentLineTokens
 			return line
 		}
 	}
@@ -78,9 +94,8 @@ func (p *Parser) parseLine() *Line {
 		if p.currentToken.Type == TokenIdentifier {
 			line.Directive = p.currentToken.Value
 			p.nextToken()
-			// Parse directive args if any
 			if p.currentToken.Type != TokenNewline && p.currentToken.Type != TokenEOF {
-				line.Value = p.parseExpression()
+				line.Operands = p.parseOperands()
 			}
 		}
 	} else if p.currentToken.Type == TokenHash {
@@ -88,12 +103,11 @@ func (p *Parser) parseLine() *Line {
 		if p.currentToken.Type == TokenIdentifier {
 			line.Directive = p.currentToken.Value
 			p.nextToken()
-			// Handle #directive = value or #directive value
 			if p.currentToken.Type == TokenEqual {
 				p.nextToken()
 			}
 			if p.currentToken.Type != TokenNewline && p.currentToken.Type != TokenEOF {
-				line.Value = p.parseExpression()
+				line.Operands = p.parseOperands()
 			}
 		}
 	}
@@ -106,6 +120,7 @@ func (p *Parser) parseLine() *Line {
 	}
 
 	p.skipUntilNewline()
+	line.Tokens = p.currentLineTokens
 	return line
 }
 
@@ -182,14 +197,15 @@ func (p *Parser) skipUntilNewline() {
 func (p *Parser) Pass1(lines []Line) error {
 	p.PC = 0 // origin; overridden by .org / #origin below
 
-	for i := range lines {
+		for i := range lines {
 		lines[i].Address = p.PC
+		loc := p.lineLoc(lines[i])
 
 		switch {
 		// A label points at the CURRENT address, before any size advance.
 		case lines[i].Label != "":
 			if _, exists := p.SymbolTable[lines[i].Label]; exists {
-				return fmt.Errorf("line %d: duplicate label %q", i, lines[i].Label)
+				return fmt.Errorf("%s: duplicate label %q", loc, lines[i].Label)
 			}
 			p.SymbolTable[lines[i].Label] = p.PC
 
@@ -197,14 +213,14 @@ func (p *Parser) Pass1(lines []Line) error {
 		case lines[i].Assignment != "":
 			v, err := p.evalValue(lines[i].Value)
 			if err != nil {
-				return fmt.Errorf("line %d: %w", i, err)
+				return fmt.Errorf("%s: %w", loc, err)
 			}
 			p.SymbolTable[lines[i].Assignment] = v
 
 		// Directives may set or advance PC (.org, .db, .ds, ...).
 		case lines[i].Directive != "":
 			if err := p.applyDirective(lines[i]); err != nil {
-				return fmt.Errorf("line %d: %w", i, err)
+				return fmt.Errorf("%s: %w", loc, err)
 			}
 		}
 
@@ -213,13 +229,21 @@ func (p *Parser) Pass1(lines []Line) error {
 		if lines[i].Mnemonic != "" {
 			size, err := p.sizeOf(lines[i])
 			if err != nil {
-				return fmt.Errorf("line %d: %w", i, err)
+				return fmt.Errorf("%s: %w", loc, err)
 			}
 			lines[i].Size = size
 			p.PC += size
 		}
 	}
 	return nil
+}
+
+// lineLoc returns a "filename:line" string for error messages.
+func (p *Parser) lineLoc(line Line) string {
+	if line.Filename != "" {
+		return fmt.Sprintf("%s:%d", line.Filename, line.LineNum)
+	}
+	return fmt.Sprintf("line %d", line.LineNum)
 }
 
 // sizeOf finds the TabEntry whose operand pattern matches this line and
@@ -253,36 +277,70 @@ func (p *Parser) evalValue(s string) (int, error) {
 		v, err := strconv.ParseInt(s[1:], 16, 32)
 		return int(v), err
 	}
+	// Z80 convention: trailing "h" / "H" indicates hex (e.g. "0C0F9h")
+	if len(s) > 1 && (s[len(s)-1] == 'h' || s[len(s)-1] == 'H') {
+		v, err := strconv.ParseInt(s[:len(s)-1], 16, 32)
+		if err == nil {
+			return int(v), nil
+		}
+	}
 	v, err := strconv.ParseInt(s, 0, 32) // handles 0x.. and decimal
 	if err != nil {
-		return 0, fmt.Errorf("cannot resolve value %q", s)
+		v, err2 := strconv.ParseInt(s, 16, 32) // fallback: bare hex like "0C0F9"
+		if err2 != nil {
+			return 0, fmt.Errorf("cannot resolve value %q", s)
+		}
+		return int(v), nil
 	}
 	return int(v), nil
 }
 
 // applyDirective handles the subset of directives that affect addressing in
 // Pass 1. The parser collapses both `.name` and `#name` into Line.Directive
-// and drops any `=`, so a `#name = value` form (e.g. "#origin = _textShadow")
-// is indistinguishable from a defining directive — we treat any unrecognized
-// directive that carries a value as a symbol definition.
+// and drops any `=`. Unrecognized directives produce an error.
 func (p *Parser) applyDirective(line Line) error {
 	switch strings.ToLower(line.Directive) {
 	case "org":
-		v, err := p.evalValue(line.Value)
+		if len(line.Operands) == 0 {
+			return fmt.Errorf(".org requires a value")
+		}
+		v, err := p.evalValue(line.Operands[0].Value)
 		if err != nil {
 			return err
 		}
 		p.PC = v
-	// case "db", "dw", "ds": advance PC by the data size (TODO)
-	default:
-		// `#name = value` defines a symbol; valueless directives are no-ops.
-		if line.Value != "" {
-			v, err := p.evalValue(line.Value)
+	case "db":
+		for _, op := range line.Operands {
+			v, err := p.evalValue(op.Value)
 			if err != nil {
 				return err
 			}
-			p.SymbolTable[line.Directive] = v
+			if v < -128 || v > 255 {
+				return fmt.Errorf("byte value %d out of range", v)
+			}
+			p.PC++
 		}
+	case "dw":
+		for _, op := range line.Operands {
+			v, err := p.evalValue(op.Value)
+			if err != nil {
+				return err
+			}
+			if v < -32768 || v > 65535 {
+				return fmt.Errorf("word value %d out of range", v)
+			}
+			p.PC += 2
+		}
+	case "ds":
+		if len(line.Operands) > 0 {
+			v, err := p.evalValue(line.Operands[0].Value)
+			if err != nil {
+				return err
+			}
+			p.PC += v
+		}
+	default:
+		return fmt.Errorf("unknown directive %q", line.Directive)
 	}
 	return nil
 }
@@ -335,11 +393,75 @@ func operandToken(op Operand) string {
 	}
 }
 
+func tokenTypeName(t TokenType) string {
+	switch t {
+	case TokenEOF:
+		return "EOF"
+	case TokenError:
+		return "Err"
+	case TokenIdentifier:
+		return "Id"
+	case TokenNumber:
+		return "Num"
+	case TokenString:
+		return "Str"
+	case TokenComma:
+		return "Comma"
+	case TokenPlus:
+		return "+"
+	case TokenMinus:
+		return "-"
+	case TokenStar:
+		return "*"
+	case TokenSlash:
+		return "/"
+	case TokenPercent:
+		return "%"
+	case TokenLParen:
+		return "("
+	case TokenRParen:
+		return ")"
+	case TokenColon:
+		return "Colon"
+	case TokenSemicolon:
+		return ";"
+	case TokenHash:
+		return "#"
+	case TokenDot:
+		return "."
+	case TokenEqual:
+		return "="
+	case TokenNewline:
+		return "NL"
+	case TokenLeftShift:
+		return "<<"
+	case TokenRightShift:
+		return ">>"
+	default:
+		return "?"
+	}
+}
+
+func formatTokens(ts []Token) string {
+	var b strings.Builder
+	for i, t := range ts {
+		if i > 0 {
+			b.WriteByte(' ')
+		}
+		b.WriteString(tokenTypeName(t.Type))
+		b.WriteByte('(')
+		b.WriteString(strings.ReplaceAll(t.Value, "\n", `\n`)) //don't print the literal newline because it messes up the table
+		b.WriteByte(')')
+	}
+	return b.String()
+}
+
 // PrintLines prints the results of Pass1: line index, address, size, label,
 // mnemonic+operands, and directive/assignment info.
 func PrintLines(lines []Line, symTable SymbolTable) {
 	fmt.Println("\nresults of Pass1:")
-	fmt.Printf("%-4s %-8s %-4s  %-16s %s\n", "Lnum", "Address", "Size", "Label", "Instruction")
+	fmt.Printf("%-4s %-8s %-4s  %-16s %-10s %-20s %-10s %-12s %-10s %s\n",
+		"Lnum", "Address", "Size", "Label", "Mnemonic", "Operands", "Directive", "Assignment", "Value", "Tokens")
 	for i, line := range lines {
 		addr := fmt.Sprintf("$%04X", line.Address)
 		label := ""
@@ -347,27 +469,19 @@ func PrintLines(lines []Line, symTable SymbolTable) {
 			label = line.Label + ":"
 		}
 
-		var inst string
-		switch {
-		case line.Mnemonic != "":
-			ops := make([]string, len(line.Operands))
-			for j, op := range line.Operands {
-				ops[j] = op.Value
-			}
-			inst = line.Mnemonic
-			if len(ops) > 0 {
-				inst += " " + strings.Join(ops, ", ")
-			}
-		case line.Directive != "":
-			inst = "." + line.Directive
-			if line.Value != "" {
-				inst += " " + line.Value
-			}
-		case line.Assignment != "":
-			inst = line.Assignment + " = " + line.Value
+		ops := make([]string, len(line.Operands))
+		for j, op := range line.Operands {
+			ops[j] = op.Value
 		}
 
-		fmt.Printf("%-4d %-8s %-4d  %-16s %s\n", i, addr, line.Size, label, inst)
+		fmt.Printf("%-4d %-8s %-4d  %-16s %-10s %-20s %-10s %-12s %-10s %s\n",
+			i, addr, line.Size, label,
+			line.Mnemonic,
+			strings.Join(ops, ", "),
+			line.Directive,
+			line.Assignment,
+			line.Value,
+			formatTokens(line.Tokens))
 	}
 
 	// Print symbol table
