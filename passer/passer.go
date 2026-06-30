@@ -279,9 +279,20 @@ func (p *Parser) evalValue(s string) (int, error) {
 		v, err := strconv.ParseInt(s[1:], 16, 32)
 		return int(v), err
 	}
+	// Z80 convention: trailing "h" / "H" indicates hex (e.g. "0C0F9h")
+	if len(s) > 1 && (s[len(s)-1] == 'h' || s[len(s)-1] == 'H') {
+		v, err := strconv.ParseInt(s[:len(s)-1], 16, 32)
+		if err == nil {
+			return int(v), nil
+		}
+	}
 	v, err := strconv.ParseInt(s, 0, 32) // handles 0x.. and decimal
 	if err != nil {
-		return 0, fmt.Errorf("cannot resolve value %q", s)
+		v, err2 := strconv.ParseInt(s, 16, 32) // fallback: bare hex like "0C0F9"
+		if err2 != nil {
+			return 0, fmt.Errorf("cannot resolve value %q", s)
+		}
+		return int(v), nil
 	}
 	return int(v), nil
 }
