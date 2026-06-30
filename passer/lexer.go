@@ -37,13 +37,14 @@ func (l *Lexer) getChar() byte {
 // NextToken scans the next token
 func (l *Lexer) NextToken() Token {
 	var tok Token
+	tok.Location = TokenLocation{Filename: l.filename, Line: l.line}
 
 	l.skipWhitespace()
 
 	if l.err != nil {
 		err := l.err
 		l.err = nil
-		return Token{Type: TokenError, Value: err.Error()}
+		return Token{Type: TokenError, Value: err.Error(), Location: TokenLocation{Filename: l.filename, Line: l.line}}
 	}
 
 	switch l.ch {
@@ -94,14 +95,14 @@ func (l *Lexer) NextToken() Token {
 	case '<':
 		if l.peekChar() == '<' {
 			l.readChar()
-			tok = Token{Type: TokenLeftShift, Value: "<<"}
+			tok = Token{Type: TokenLeftShift, Value: "<<", Location: TokenLocation{Filename: l.filename, Line: l.line}}
 		} else {
 			tok = l.newToken(TokenError, l.ch)
 		}
 	case '>':
 		if l.peekChar() == '>' {
 			l.readChar()
-			tok = Token{Type: TokenRightShift, Value: ">>"}
+			tok = Token{Type: TokenRightShift, Value: ">>", Location: TokenLocation{Filename: l.filename, Line: l.line}}
 		} else {
 			tok = l.newToken(TokenError, l.ch)
 		}
