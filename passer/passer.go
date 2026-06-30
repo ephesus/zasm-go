@@ -247,21 +247,42 @@ func (p *Parser) lineLoc(line Line) string {
 }
 
 // sizeOf finds the TabEntry whose operand pattern matches this line and
-// returns its Size. This is the step that needs operands classified well
-// enough to disambiguate same-mnemonic variants (see operandPattern).
+// returns its Size.
 func (p *Parser) sizeOf(line Line) (int, error) {
 	entries, ok := p.Encoding[strings.ToUpper(line.Mnemonic)]
 	if !ok {
 		return 0, fmt.Errorf("unknown mnemonic %q", line.Mnemonic)
 	}
-	pattern := operandPattern(line.Operands)
 	for _, e := range entries {
-		if e.Operands == pattern {
+		if matchOperands(e.Operands, line.Operands) {
 			return e.Size, nil
 		}
 	}
 	fmt.Println(line)
-	return 0, fmt.Errorf("no encoding for %q with operands %q", line.Mnemonic, pattern)
+	ops := make([]string, len(line.Operands))
+	for i, op := range line.Operands {
+		ops[i] = op.Value
+	}
+	return 0, fmt.Errorf("no encoding for %q with operands %q", line.Mnemonic, strings.Join(ops, ","))
+}
+
+// matchOperands checks whether a TAB entry's operand string (e.g. "A,*", "2")
+// matches the parsed operands. In the TAB format, "*" is a wildcard that
+// matches any immediate or address operand.
+func matchOperands(tabOperands string, parsed []Operand) bool {
+	parts := strings.Split(tabOperands, ",")
+	if len(parts) != len(parsed) {
+		return false
+	}
+	for i, part := range parts {
+		if part == "*" {
+			continue // wildcard matches any operand
+		}
+		if !strings.EqualFold(part, parsed[i].Value) {
+			return false
+		}
+	}
+	return true
 }
 
 // evalValue resolves a directive/assignment value: an existing symbol, a
