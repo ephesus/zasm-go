@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 
 	"golang.org/x/text/language"
 	"golang.org/x/text/message"
@@ -164,7 +165,7 @@ func main() {
 	}
 
 	// Lex and parse the source into lines
-	lexer := passer.NewLexer(string(src))
+	lexer := passer.NewLexer(string(src), cfg.InputFile, filepath.Dir(cfg.InputFile))
 	parser := passer.NewParser(lexer, TableFile)
 	lines := parser.Parse()
 

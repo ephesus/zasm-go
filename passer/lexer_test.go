@@ -79,7 +79,7 @@ label1:
 		{TokenEOF, ""},
 	}
 
-	l := NewLexer(input)
+	l := NewLexer(input, "", "")
 
 	for i, tt := range tests {
 		tok := l.NextToken()

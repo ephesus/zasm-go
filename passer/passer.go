@@ -58,6 +58,10 @@ func (p *Parser) parseLine() *Line {
 		return nil
 	}
 
+	// Capture source location from the first meaningful token
+	line.Filename = p.currentToken.Location.Filename
+	line.LineNum = p.currentToken.Location.Line
+
 	// Handle Label or Assignment
 	// Not using a switch statement because of lines like "mylabel: ld a, b" get complicated
 	if p.currentToken.Type == TokenIdentifier {
@@ -187,14 +191,15 @@ func (p *Parser) skipUntilNewline() {
 func (p *Parser) Pass1(lines []Line) error {
 	p.PC = 0 // origin; overridden by .org / #origin below
 
-	for i := range lines {
+		for i := range lines {
 		lines[i].Address = p.PC
+		loc := p.lineLoc(lines[i])
 
 		switch {
 		// A label points at the CURRENT address, before any size advance.
 		case lines[i].Label != "":
 			if _, exists := p.SymbolTable[lines[i].Label]; exists {
-				return fmt.Errorf("line %d: duplicate label %q", i, lines[i].Label)
+				return fmt.Errorf("%s: duplicate label %q", loc, lines[i].Label)
 			}
 			p.SymbolTable[lines[i].Label] = p.PC
 
@@ -202,14 +207,14 @@ func (p *Parser) Pass1(lines []Line) error {
 		case lines[i].Assignment != "":
 			v, err := p.evalValue(lines[i].Value)
 			if err != nil {
-				return fmt.Errorf("line %d: %w", i, err)
+				return fmt.Errorf("%s: %w", loc, err)
 			}
 			p.SymbolTable[lines[i].Assignment] = v
 
 		// Directives may set or advance PC (.org, .db, .ds, ...).
 		case lines[i].Directive != "":
 			if err := p.applyDirective(lines[i]); err != nil {
-				return fmt.Errorf("line %d: %w", i, err)
+				return fmt.Errorf("%s: %w", loc, err)
 			}
 		}
 
@@ -218,13 +223,21 @@ func (p *Parser) Pass1(lines []Line) error {
 		if lines[i].Mnemonic != "" {
 			size, err := p.sizeOf(lines[i])
 			if err != nil {
-				return fmt.Errorf("line %d: %w", i, err)
+				return fmt.Errorf("%s: %w", loc, err)
 			}
 			lines[i].Size = size
 			p.PC += size
 		}
 	}
 	return nil
+}
+
+// lineLoc returns a "filename:line" string for error messages.
+func (p *Parser) lineLoc(line Line) string {
+	if line.Filename != "" {
+		return fmt.Sprintf("%s:%d", line.Filename, line.LineNum)
+	}
+	return fmt.Sprintf("line %d", line.LineNum)
 }
 
 // sizeOf finds the TabEntry whose operand pattern matches this line and

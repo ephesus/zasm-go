@@ -26,16 +26,36 @@ const (
     TokenRightShift // >>
 )
 
+type TokenLocation struct {
+	Filename string
+	Line     int
+}
+
 type Token struct {
-    Type  TokenType
-    Value string
+	Type     TokenType
+	Value    string
+	Location TokenLocation
+}
+
+type IncludeFrame struct {
+	input        string
+	position     int
+	readPosition int
+	ch           byte
+	line         int
+	filename     string
 }
 
 type Lexer struct {
-    input        string
-    position     int  // current position in input (points to current char)
-    readPosition int  // next reading position in input (after current char)
-    ch           byte // current char under examination
+	input        string
+	position     int  // current position in input (points to current char)
+	readPosition int  // next reading position in input (after current char)
+	ch           byte // current char under examination
+	line         int
+	filename     string
+	baseDir      string
+	frames       []IncludeFrame
+	err          error
 }
 
 type OperandType int
@@ -63,6 +83,8 @@ type Line struct {
 	Address    int    // PC assigned during Pass1
 	Size       int    // instruction size from encoding table
 	Tokens     []Token // optionally keep tokens for debugging
+	Filename   string
+	LineNum    int
 }
 
 type SymbolTable map[string]int //z80 is only 16 bit words
