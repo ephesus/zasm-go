@@ -270,6 +270,9 @@ func (p *Parser) sizeOf(line Line) (int, error) {
 // matches the parsed operands. In the TAB format, "*" is a wildcard that
 // matches any immediate or address operand.
 func matchOperands(tabOperands string, parsed []Operand) bool {
+	if tabOperands == "" {
+		return len(parsed) == 0
+	}
 	parts := strings.Split(tabOperands, ",")
 	if len(parts) != len(parsed) {
 		return false
