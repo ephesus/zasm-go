@@ -142,6 +142,8 @@ func debugPrint(desc string, message any) {
 
 // main() is the entrypoint
 func main() {
+	log.SetFlags(0)
+
 	//all global configuration is stored in the cfg
 	var cfg = parseFlags()
 
